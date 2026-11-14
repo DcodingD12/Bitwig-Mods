@@ -7,15 +7,22 @@ Needs **Framework: Actions and Menus** (`action-menu-composition-framework`) to 
 ## How to lock a track
 
 - Right-click the track (its header in the arranger, or in the mixer) and choose **Lock track height**.
-  This adds `#lock` to the end of the track's comment. Several selected tracks are locked at once.
-- To unlock, right-click again and choose **Unlock track height**. This removes `#lock` from the comment;
-  the rest of the comment and the name stay exactly as they were.
+  This adds `#lock` to the end of the track's comment and ` (L)` to the end of its name
+  (e.g. `Omnisphere` becomes `Omnisphere (L)`), so you can see the lock in the track list.
+  Several selected tracks are locked at once.
+- To unlock, right-click again and choose **Unlock track height**. This removes `#lock` from the comment
+  and `(L)` from the name (also an older `[L]` or lock emoji); the rest of comment and name stay exactly as they were.
 - Both are one undo step each (Edit > Undo).
 
-You can also type `#lock` into the comment by hand, or put `[L]` (or the lock emoji) into the track's name.
-A track locked by its name can only be unlocked by renaming it; the menu then shows no entry.
+You can also lock by hand: type `#lock` into the comment, or `(L)`, `[L]` or the lock emoji into the name.
+`(L)` only counts as a word of its own: `Bass (LFO)` or `Bass(L)` are not locked.
+
+Note: a track without a name of its own shows an automatic name (e.g. the instrument's name).
+Locking writes that name plus ` (L)` as the track's name. After unlocking the same name is shown again,
+but it is now a fixed name and no longer follows the instrument automatically.
 
 The lock is stored with the project, because the comment and the name are.
+The ` (L)` is part of the real track name, so it also shows in the mixer and in exported file names.
 
 ## What is blocked
 

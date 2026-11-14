@@ -40,17 +40,31 @@
   `withoutTag` entfernt jedes `#lock` plus genau ein Leerzeichen daneben, sonst bleibt alles gleich.
 - Bitwig zeigt Spurkommentare im Mixer (Kommentar-Bereich) und im Inspector.
 - `tools/build-mod.sh` legt jetzt `classpath_mods` aus build.json (Framework-helper.jar aus BML/mods) auf den Klassenpfad.
+- 0.2.1-dev.1: Menütexte englisch ("Lock track height" / "Unlock track height"), Autor "Silent Orbit" (beibehalten).
+
+### Name-Markierung " (L)" (Version 0.2.2-dev.1)
+- Titel-Setter: `rMD.d_(String)` (Bitwigs eigenes Umbenennen `channel_properties.operations.change_title` in `FMm`
+  ruft `gEH.d_` auf). Titel-Getter `rMD.eXf()` (Feld `scr`, kann leer sein). Angezeigter Name `rMD.cb_()`
+  (`displayed_title`, wird von Bitwig getrennt berechnet, nicht sofort im Setter).
+- Sperren: Kommentar + " #lock" und Titel + " (L)" im selben Undo-Schritt. Ohne eigenen Titel wird der
+  angezeigte Name + " (L)" als Titel gesetzt (danach ist der Name fest, folgt nicht mehr dem Gerät).
+- Entsperren: entfernt `#lock` und im Titel `(L)`, `[L]` und Schloss-Emoji (je plus ein Leerzeichen).
+  Menü zeigt "Unlock", sobald Kommentar ODER Titel/angezeigter Name eine Markierung hat.
+- `(L)` zählt nur als eigenes Wort (Regex: kein Buchstabe/Ziffer direkt davor/danach): `(LFO)`, `Bass(L)` zählen nicht.
+- Sperrprüfung liegt in `TrackLock` (ohne Framework-Abhängigkeit), damit der Hook auch ohne Framework sperrt.
+- ZIP: `out/track-height-lock-0.2.2-dev.1.zip` (Ordner `track-height-lock/` oben).
 
 ### Entscheidungen
 - Ein Hook: `REPLACE_CALL` in `Sc.Heb(I)V` auf den Aufruf `Sc.iMb(I)V`. Gesperrte Spur -> Aufruf fällt weg.
   Deckt Ziehen, Alt-Ziehen, Zoom-Kürzel und alle Bindungen ab; Laden und Undo bleiben unberührt.
-- Sperre pro Spur ohne eigene Speicherung: Name enthält `[L]` (oder Schloss-Emoji) oder Kommentar enthält `#lock`.
+- Sperre pro Spur ohne eigene Speicherung: Name enthält `(L)`/`[L]` (oder Schloss-Emoji) oder Kommentar enthält `#lock`.
   Wird so automatisch mit dem Projekt gespeichert.
 - `built_against` = macOS 6.1.7 (läuft nur genau auf diesem Build).
 
 ### Stand
 - [x] Untersuchung, Prototyp gebaut (`out/track-height-lock`), Regel-Tests grün.
-- [x] Kontextmenü "Spurhöhe sperren/entsperren" (0.2.0-dev.1) gebaut und kompiliert.
+- [x] Kontextmenü (0.2.0/0.2.1) gebaut und kompiliert.
+- [x] 0.2.2-dev.1: " (L)" im Namen, gebaut, ZIP erstellt (altes 0.2.1-ZIP gelöscht).
 - [ ] Offline-Check (bewusst nicht ausgeführt, überschreibt BML-Dateien).
 - [ ] Test in Bitwig (Patchbay > Mods > Add Mod… > `out/track-height-lock`, Framework "Actions and Menus" mit aktivieren).
 
@@ -58,8 +72,10 @@
 - Zoom-Kürzel: Widget wird zuerst vergrößert, Modell lehnt ab -> Zeile kann kurz falsch aussehen.
 - Resize-Cursor erscheint weiter auf gesperrten Spuren.
 - Automations-Lanes werden nicht gesperrt.
-- Spur nur per Name `[L]` gesperrt: Menü zeigt keinen Eintrag (Entsperren nur durch Umbenennen).
-- Menüeinträge sind deutsch, Bitwig selbst ist englisch.
+- " (L)" ist Teil des echten Namens: sichtbar im Mixer, in Export-/Stem-Dateinamen, für Controller-Skripte.
+- Spuren ohne eigenen Titel: nach Entsperren gleicher Name sichtbar, aber fester Titel (kein Auto-Name mehr).
+- Benennt der Nutzer eine gesperrte Spur um und löscht dabei "(L)", bleibt sie über `#lock` gesperrt.
+- Undo: ein Schritt für Kommentar + Name; nicht in Bitwig getestet.
 
 ### Ausbaustufe (Ideen)
 1. (erledigt: Kontextmenü)

@@ -42,6 +42,38 @@ public final class LockRuleTest {
         same("nothing to remove", LockRule.withoutTag("  spaced  "), "  spaced  ");
         same("round trip", LockRule.withoutTag(LockRule.withTag("Bass  line")), "Bass  line");
 
+        // Name mark "(L)": detection
+        check("(L) at the end", LockRule.isLocked("Omnisphere (L)", null));
+        check("(l) lower case", LockRule.isLocked("Omnisphere (l)", null));
+        check("(L) alone", LockRule.isLocked("(L)", null));
+        check("(L) in the middle", LockRule.isLocked("Pad (L) wide", null));
+        check("(LFO) is not the mark", !LockRule.isLocked("Bass (LFO)", null));
+        check("Bass(L) glued is not the mark", !LockRule.isLocked("Bass(L)", null));
+        check("(L)2 glued is not the mark", !LockRule.isLocked("Bass (L)2", null));
+        check("(Lead) is not the mark", !LockRule.isLocked("Synth (Lead)", null));
+
+        // Name mark: adding
+        same("name add", LockRule.withNameTag("Omnisphere"), "Omnisphere (L)");
+        same("name add to empty", LockRule.withNameTag(""), "(L)");
+        same("name add to null", LockRule.withNameTag(null), "(L)");
+        same("name add twice", LockRule.withNameTag("Omnisphere (L)"), "Omnisphere (L)");
+        same("name add with [L]", LockRule.withNameTag("[L] Drums"), "[L] Drums");
+        same("name add keeps (LFO)", LockRule.withNameTag("Bass (LFO)"), "Bass (LFO) (L)");
+
+        // Name mark: removing gives exactly the old name back
+        same("name remove", LockRule.withoutNameTag("Omnisphere (L)"), "Omnisphere");
+        same("name remove alone", LockRule.withoutNameTag("(L)"), "");
+        same("name remove [L]", LockRule.withoutNameTag("[L] Drums"), "Drums");
+        same("name remove [l] at end", LockRule.withoutNameTag("Drums [l]"), "Drums");
+        same("name remove emoji", LockRule.withoutNameTag("🔒 Drums"), "Drums");
+        same("name remove keeps (LFO)", LockRule.withoutNameTag("Bass (LFO) (L)"), "Bass (LFO)");
+        same("name remove nothing", LockRule.withoutNameTag("Bass (LFO)"), "Bass (LFO)");
+        same("name remove null", LockRule.withoutNameTag(null), "");
+        for (String name : new String[] {"Omnisphere", "Bass (LFO)", "Two  spaces", " lead space",
+                "trail space ", "Pad 2", "Ümlaut Spur"}) {
+            same("name round trip [" + name + "]", LockRule.withoutNameTag(LockRule.withNameTag(name)), name);
+        }
+
         if (failures > 0) {
             System.out.println("LOCKRULE_TESTS_FAILED " + failures);
             System.exit(1);

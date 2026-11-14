@@ -49,8 +49,7 @@ public final class TrackHeightLockHooks {
             if (track == null) {
                 return false;
             }
-            // cb_() = displayed title (the name you see), wze() = the track's comment
-            return LockRule.isLocked(track.cb_(), track.wze());
+            return TrackLock.isLocked(track); // comment "#lock", or "(L)"/"[L]" in title or shown name
         } catch (Throwable t) {
             // Never break Bitwig: if anything is odd, behave as if the mod weren't there.
             if (!loggedProblem) {

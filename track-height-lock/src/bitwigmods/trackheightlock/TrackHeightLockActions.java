@@ -15,9 +15,9 @@ import java.util.List;
 
 /**
  * Two rows in the track's right-click menu (Framework: Actions and Menus):
- * "Lock track height" adds "#lock" to the comment of the selected tracks,
- * "Unlock track height" removes it again. Each runs as one undo step.
- * Only the "#lock" tag is touched; the name and the rest of the comment stay as they are.
+ * "Lock track height" adds "#lock" to the comment and " (L)" to the name of the selected tracks,
+ * "Unlock track height" removes both again (and an older "[L]" or lock emoji in the name).
+ * Each runs as one undo step. Only these marks are touched; the rest of name and comment stay as they are.
  *
  * Names are Bitwig 6.1.7 (macOS).
  */
@@ -57,24 +57,24 @@ public final class TrackHeightLockActions implements ActionProvider {
     /** Show "lock" when at least one selected track isn't locked yet (by name or comment). */
     private static boolean anyUnlocked(List<sJU> tracks) {
         for (sJU track : tracks) {
-            if (!LockRule.isLocked(track.cb_(), track.wze())) { // cb_: shown name, wze: comment
+            if (!TrackLock.isLocked(track)) {
                 return true;
             }
         }
         return false;
     }
 
-    /** Show "unlock" when at least one selected track has "#lock" in its comment. */
+    /** Show "unlock" when at least one selected track has a lock mark the menu can remove (comment or name). */
     private static boolean anyTagged(List<sJU> tracks) {
         for (sJU track : tracks) {
-            if (LockRule.commentIsLocked(track.wze())) {
+            if (TrackLock.isLocked(track)) {
                 return true;
             }
         }
         return false;
     }
 
-    /** Adds or removes the tag on every selected track, as one undo step. */
+    /** Adds or removes the marks on every selected track, as one undo step. */
     private static void setLock(List<sJU> tracks, boolean lock) {
         if (tracks.isEmpty()) {
             return;
@@ -86,15 +86,21 @@ public final class TrackHeightLockActions implements ActionProvider {
             open = true;
             for (sJU track : tracks) {
                 String comment = track.wze() == null ? "" : track.wze();
-                String changed = lock ? LockRule.withTag(comment) : LockRule.withoutTag(comment);
-                if (!changed.equals(comment)) {
-                    track.Heb(changed); // Bitwig's comment setter (the one its own "change comment" uses)
+                String newComment = lock ? LockRule.withTag(comment) : LockRule.withoutTag(comment);
+                if (!newComment.equals(comment)) {
+                    track.Heb(newComment); // Bitwig's comment setter (the one its own "change comment" uses)
+                }
+
+                String title = track.eXf() == null ? "" : track.eXf();
+                String newTitle = lock ? LockRule.withNameTag(TrackLock.currentName(track)) : LockRule.withoutNameTag(title);
+                if (!newTitle.equals(title)) {
+                    track.d_(newTitle); // Bitwig's title setter (the one its own "rename" uses)
                 }
             }
             project.beI(false); // close the undo step
             open = false;
         } catch (Throwable failure) {
-            MOD.log("could not change the lock tag", failure);
+            MOD.log("could not change the lock marks", failure);
             if (open) {
                 try {
                     project.beI(false);
