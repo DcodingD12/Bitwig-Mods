@@ -15,8 +15,8 @@ import java.util.List;
 
 /**
  * Two rows in the track's right-click menu (Framework: Actions and Menus):
- * "Spurhöhe sperren" adds "#lock" to the comment of the selected tracks,
- * "Spurhöhe entsperren" removes it again. Each runs as one undo step.
+ * "Lock track height" adds "#lock" to the comment of the selected tracks,
+ * "Unlock track height" removes it again. Each runs as one undo step.
  * Only the "#lock" tag is touched; the name and the rest of the comment stay as they are.
  *
  * Names are Bitwig 6.1.7 (macOS).
@@ -26,12 +26,12 @@ public final class TrackHeightLockActions implements ActionProvider {
 
     @Override
     public void declare(Actions actions) {
-        actions.action("track_height_lock_lock", "Spurhöhe sperren")
+        actions.action("track_height_lock_lock", "Lock track height")
                .in(Menu.selection("track"))
                .menuOnly()
                .visibleWhen(context -> anyUnlocked(tracks(context)))
                .onRun(context -> setLock(tracks(context), true));
-        actions.action("track_height_lock_unlock", "Spurhöhe entsperren")
+        actions.action("track_height_lock_unlock", "Unlock track height")
                .in(Menu.selection("track"))
                .menuOnly()
                .visibleWhen(context -> anyTagged(tracks(context)))
@@ -82,7 +82,7 @@ public final class TrackHeightLockActions implements ActionProvider {
         CmH project = tracks.get(0).cc_();
         boolean open = false;
         try {
-            project.beI(lock ? "Spurhöhe sperren" : "Spurhöhe entsperren", false); // open one undo step
+            project.beI(lock ? "Lock track height" : "Unlock track height", false); // open one undo step
             open = true;
             for (sJU track : tracks) {
                 String comment = track.wze() == null ? "" : track.wze();

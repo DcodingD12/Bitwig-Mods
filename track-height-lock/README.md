@@ -6,9 +6,9 @@ Needs **Framework: Actions and Menus** (`action-menu-composition-framework`) to 
 
 ## How to lock a track
 
-- Right-click the track (its header in the arranger, or in the mixer) and choose **Spurhöhe sperren**.
+- Right-click the track (its header in the arranger, or in the mixer) and choose **Lock track height**.
   This adds `#lock` to the end of the track's comment. Several selected tracks are locked at once.
-- To unlock, right-click again and choose **Spurhöhe entsperren**. This removes `#lock` from the comment;
+- To unlock, right-click again and choose **Unlock track height**. This removes `#lock` from the comment;
   the rest of the comment and the name stay exactly as they were.
 - Both are one undo step each (Edit > Undo).
 
