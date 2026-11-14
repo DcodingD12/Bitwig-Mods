@@ -1,0 +1,21 @@
+{
+  "manifest_version": 2,
+  "mod": {
+    "id": "settings-scaling-drag",
+    "name": "Settings: Drag Display Scaling",
+    "area": "Settings",
+    "version": "0.1.0-dev.1",
+    "author": "local",
+    "description": "Lets you drag the Scaling value in Settings > Display up and down with the mouse. Bitwig still uses 25% steps.",
+    "documentation": "readme"
+  },
+  "built_against": {
+    "bitwig_version": "6.1.7",
+    "platform": "macos",
+    "architecture": "universal"
+  },
+  "resources": {
+    "readme": { "kind": "file", "path": "README.md", "media_type": "text/markdown" }
+  },
+  "requires": []
+}

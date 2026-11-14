@@ -1,0 +1,5 @@
+# Build output (the compile jar is made from Bitwig's jar: never share or commit it)
+build/
+out/
+.DS_Store
+__pycache__/
