@@ -48,14 +48,29 @@ fi
 rm -rf "$WORK" "$OUT"
 mkdir -p "$WORK/classes" "$OUT"
 
-# 4. Compile (this mod uses no framework, so no extra jars on the classpath).
+# 3. Frameworks: build.json's "classpath_mods" ("<mod-id>" or "<mod-id>@<version>") are taken
+#    from the frameworks installed in BML's mods folder (only their helper.jar, read only).
+DEPS=""
+if [ -f "$MOD/build.json" ]; then
+  for dep in $(python3 -c 'import json,sys; print(" ".join(m.split("@")[0] for m in json.load(open(sys.argv[1])).get("classpath_mods", [])))' "$MOD/build.json"); do
+    jar_path="$BML/mods/$dep/helper.jar"
+    if [ ! -f "$jar_path" ]; then
+      echo "BUILD_ERROR: framework $dep not found at $jar_path" >&2
+      exit 1
+    fi
+    DEPS="$DEPS:$jar_path"
+  done
+fi
+
+# 4. Compile.
 find "$MOD/src" -name '*.java' > "$WORK/sources.txt"
 "$JAVAC" --release 21 -proc:none -encoding UTF-8 -implicit:none \
-  -sourcepath "$MOD/src" -cp "$COMPILE:$LIBS_JAR:$KIT/bml-api.jar" \
+  -sourcepath "$MOD/src" -cp "$COMPILE:$LIBS_JAR:$KIT/bml-api.jar$DEPS" \
   -d "$WORK/classes" @"$WORK/sources.txt"
 
 # 5. Finish: checks the @Hook methods against Bitwig's jar and writes hooks.json.
-"$JAVA" -jar "$KIT/bml-modkit.jar" finish "$WORK/classes" "$WORK/hooks.json" "$BITWIG_JAR" "$LIBS_JAR"
+# shellcheck disable=SC2086 # DEPS is split into separate jar arguments on purpose
+"$JAVA" -jar "$KIT/bml-modkit.jar" finish "$WORK/classes" "$WORK/hooks.json" "$BITWIG_JAR" "$LIBS_JAR" $(echo "$DEPS" | tr ':' ' ')
 
 # 6. helper.jar
 "$JAR_TOOL" --create --file "$OUT/helper.jar" -C "$WORK/classes" .

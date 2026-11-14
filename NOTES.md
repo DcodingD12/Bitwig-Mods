@@ -26,6 +26,21 @@
 - Spur: `ydZ.p1J()` -> `sJU`; Name `rMD.cb_()` (displayed_title), Titel `rMD.eXf()`, Kommentar `rMD.wze()`.
 - Namen 6.1.4 (macOS): Sc=`Hea`, ydZ=`hPk`, sJU=`zwV`, rMD=`cXR`, Heb=`TtY`, iMb=`fJR`, p1J=`Pgx`, wze=`AgD`, cb_=`ca_`.
 
+### Kontextmenü (Version 0.2.0-dev.1)
+- Framework "Actions and Menus" (`action-menu-composition-framework` 0.8.0-dev.1, im BML-Ordner installiert,
+  auf diesem Rechner schon erfolgreich für macOS 6.1.7 vorbereitet). Menü: `Menu.selection("track")`.
+- Registrierung in `mod.json` (`registrations`) + `package/actions.properties` -> `TrackHeightLockActions`.
+- Spuren aus dem Menü: `context.selection()` ist `bju` -> `bju.unz()` = `GRp` -> `GRp.MgQ()` = Liste (Spuren = `sJU`).
+  Muster abgeschaut von BML's Mod `hibernate-tracks` (dort 6.1.4-Namen `big.UNj()`, `ICh.FzB()`).
+- Kommentar setzen: `rMD.Heb(String)` (öffentlich, wie Bitwigs eigene Operation
+  `channel_properties.operations.change_comment` in `FMm`). Getter `rMD.wze()`.
+- Undo: `CmH.beI("Spurhöhe sperren", false)` öffnet einen Schritt, `CmH.beI(false)` schließt ihn,
+  bei Fehler `CmH.cov()` (Undo). Projekt über `sJU.cc_()`. (6.1.4-Namen: `g2L.cfM(String,Z)`, `cfM(Z)`, `Mb2()`.)
+- `LockRule`: `#lock` zählt nur als ganzes Wort (`#locked` nicht). `withTag` hängt " #lock" an,
+  `withoutTag` entfernt jedes `#lock` plus genau ein Leerzeichen daneben, sonst bleibt alles gleich.
+- Bitwig zeigt Spurkommentare im Mixer (Kommentar-Bereich) und im Inspector.
+- `tools/build-mod.sh` legt jetzt `classpath_mods` aus build.json (Framework-helper.jar aus BML/mods) auf den Klassenpfad.
+
 ### Entscheidungen
 - Ein Hook: `REPLACE_CALL` in `Sc.Heb(I)V` auf den Aufruf `Sc.iMb(I)V`. Gesperrte Spur -> Aufruf fällt weg.
   Deckt Ziehen, Alt-Ziehen, Zoom-Kürzel und alle Bindungen ab; Laden und Undo bleiben unberührt.
@@ -35,18 +50,20 @@
 
 ### Stand
 - [x] Untersuchung, Prototyp gebaut (`out/track-height-lock`), Regel-Tests grün.
+- [x] Kontextmenü "Spurhöhe sperren/entsperren" (0.2.0-dev.1) gebaut und kompiliert.
 - [ ] Offline-Check (bewusst nicht ausgeführt, überschreibt BML-Dateien).
-- [ ] Test in Bitwig (Patchbay > Mods > Add Mod… > `out/track-height-lock`).
+- [ ] Test in Bitwig (Patchbay > Mods > Add Mod… > `out/track-height-lock`, Framework "Actions and Menus" mit aktivieren).
 
 ### Offene Risiken
 - Zoom-Kürzel: Widget wird zuerst vergrößert, Modell lehnt ab -> Zeile kann kurz falsch aussehen.
 - Resize-Cursor erscheint weiter auf gesperrten Spuren.
 - Automations-Lanes werden nicht gesperrt.
+- Spur nur per Name `[L]` gesperrt: Menü zeigt keinen Eintrag (Entsperren nur durch Umbenennen).
+- Menüeinträge sind deutsch, Bitwig selbst ist englisch.
 
 ### Ausbaustufe (Ideen)
-1. Aktion "Spurhöhe sperren/entsperren" im Spur-Kontextmenü über das Framework "action-menu-composition-framework"
-   (setzt/entfernt `#lock` im Kommentar).
+1. (erledigt: Kontextmenü)
 2. Am Widget `dYU` vertikales Resizing abschalten (`is_vert_resizing_enabled`), damit kein Cursor/kein Zieh-Griff erscheint.
-3. Schloss-Symbol im Spurkopf (Hook im Spurkopf-Builder, aufwendig) – oder einfach Emoji im Namen.
+3. Schloss-Symbol: vom Nutzer nicht gewünscht.
 4. Option "alle Spuren sperren" über BML-Settings (`MOD.settings()`), Automations-Lanes mit sperren.
 5. Gegen 6.1.4-Namen bauen, damit es auf allen Versionen läuft.

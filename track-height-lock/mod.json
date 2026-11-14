@@ -4,9 +4,9 @@
     "id": "track-height-lock",
     "name": "Arranger: Track Height Lock",
     "area": "Arranger",
-    "version": "0.1.0-dev.1",
+    "version": "0.2.0-dev.1",
     "author": "local",
-    "description": "Keeps the arranger height of chosen tracks fixed. A track is locked when its name contains [L] (or the lock emoji) or its comment contains #lock.",
+    "description": "Keeps the arranger height of chosen tracks fixed. Right-click a track: 'Spurhöhe sperren' adds #lock to its comment, 'Spurhöhe entsperren' removes it. A name containing [L] also locks. Needs Framework: Actions and Menus.",
     "documentation": "readme"
   },
   "built_against": {
@@ -15,7 +15,19 @@
     "architecture": "universal"
   },
   "resources": {
-    "readme": { "kind": "file", "path": "README.md", "media_type": "text/markdown" }
+    "readme": {
+      "kind": "file",
+      "path": "README.md",
+      "media_type": "text/markdown"
+    }
   },
-  "requires": []
+  "requires": [],
+  "registrations": [
+    {
+      "id": "actions",
+      "consumer": "action-menu-composition-framework",
+      "descriptor": "actions.properties",
+      "jar": "helper.jar"
+    }
+  ]
 }
