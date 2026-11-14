@@ -54,6 +54,21 @@
 - Sperrprüfung liegt in `TrackLock` (ohne Framework-Abhängigkeit), damit der Hook auch ohne Framework sperrt.
 - ZIP: `out/track-height-lock-0.2.2-dev.1.zip` (Ordner `track-height-lock/` oben).
 
+### Ohne Undo (Version 0.2.3-dev.1)
+- Undo-Aufzeichnung: jede Attribut-Änderung meldet sich über `ytz.beI(dgs, ytz, String)` beim Beobachter
+  `dgT` (gehört zum Undo-Schreiber `dgR`). `dgT.aboutToChangeAttributeValue(dgs, ytz, String)` zeichnet nur auf,
+  wenn `dgs.dvk()` true ist (Flag-Bit 16 im Konstruktor-Wert) und nicht gerade Undo/Redo läuft (`dgR.PJ3`).
+- Flags: title 410 und comment 410 (undo-fähig), displayed_title 385, is_modified 385, clip_lane_height 394 (nicht undo-fähig).
+- Ohne offene Undo-Klammer legt `diF.beI(dfz, ytz, Object)` trotzdem einen Eintrag an: entweder automatisch einen eigenen
+  Schritt oder (bei manchen Properties) angehängt an den VORHERIGEN Schritt -> Klammer weglassen reicht nicht.
+- Keine öffentliche API zum Entfernen eines Undo-Schritts (`diF`, Verlauf liegt auch auf der Platte).
+- Lösung: Hook `lock-marks-without-undo` = REPLACE_CALL in `dgT.aboutToChangeAttributeValue(Ldgs;Lytz;Ljava/lang/String;)V`
+  auf `dgs.dvk()Z` (1. Aufruf). Liefert false nur während `TrackHeightLockHooks.runWithoutUndo(...)`, nur auf dem
+  aufrufenden Thread, nur für die Attribut-Objekte `rMD.RiZ().jTs()` (title) und `.mEL()` (comment).
+- Danach `TzU.nhI(true)` = `is_modified` (selbst nicht undo-fähig), damit Bitwig beim Schließen nach Speichern fragt.
+- Undo/Redo anderer Schritte setzt einfach den gespeicherten alten/neuen Wert (`dhd` -> `JDx.Gef(Object)`), ohne Prüfung
+  -> kein Absturz/Abbruch, aber ältere Schritte können Name/Kommentar auf alten Stand setzen (Markierung weg oder zurück).
+
 ### Entscheidungen
 - Ein Hook: `REPLACE_CALL` in `Sc.Heb(I)V` auf den Aufruf `Sc.iMb(I)V`. Gesperrte Spur -> Aufruf fällt weg.
   Deckt Ziehen, Alt-Ziehen, Zoom-Kürzel und alle Bindungen ab; Laden und Undo bleiben unberührt.
@@ -65,6 +80,7 @@
 - [x] Untersuchung, Prototyp gebaut (`out/track-height-lock`), Regel-Tests grün.
 - [x] Kontextmenü (0.2.0/0.2.1) gebaut und kompiliert.
 - [x] 0.2.2-dev.1: " (L)" im Namen, gebaut, ZIP erstellt (altes 0.2.1-ZIP gelöscht).
+- [x] 0.2.3-dev.1: Sperren/Entsperren ohne Undo, gebaut, ZIP `out/track-height-lock-0.2.3-dev.1.zip` (0.2.2-ZIP gelöscht).
 - [ ] Offline-Check (bewusst nicht ausgeführt, überschreibt BML-Dateien).
 - [ ] Test in Bitwig (Patchbay > Mods > Add Mod… > `out/track-height-lock`, Framework "Actions and Menus" mit aktivieren).
 
@@ -75,7 +91,10 @@
 - " (L)" ist Teil des echten Namens: sichtbar im Mixer, in Export-/Stem-Dateinamen, für Controller-Skripte.
 - Spuren ohne eigenen Titel: nach Entsperren gleicher Name sichtbar, aber fester Titel (kein Auto-Name mehr).
 - Benennt der Nutzer eine gesperrte Spur um und löscht dabei "(L)", bleibt sie über `#lock` gesperrt.
-- Undo: ein Schritt für Kommentar + Name; nicht in Bitwig getestet.
+- Ohne Undo (0.2.3): nicht in Bitwig getestet. Ein Cmd+Z auf einen ÄLTEREN Schritt, der Name/Kommentar betraf
+  (z. B. Umbenennen vor dem Sperren), setzt den alten Wert -> " (L)" bzw. "#lock" kann verschwinden/zurückkommen.
+  Sperre bleibt, solange eine Markierung übrig ist. Ob die Engine/Controller den neuen Namen sofort sehen, ist ungeprüft.
+- Der dgT-Hook läuft bei jeder Textänderung in Bitwig (schneller Pfad: nur ein Thread-Vergleich).
 
 ### Ausbaustufe (Ideen)
 1. (erledigt: Kontextmenü)

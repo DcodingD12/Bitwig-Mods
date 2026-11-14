@@ -12,7 +12,9 @@ Needs **Framework: Actions and Menus** (`action-menu-composition-framework`) to 
   Several selected tracks are locked at once.
 - To unlock, right-click again and choose **Unlock track height**. This removes `#lock` from the comment
   and `(L)` from the name (also an older `[L]` or lock emoji); the rest of comment and name stay exactly as they were.
-- Both are one undo step each (Edit > Undo).
+- Locking and unlocking are **not undoable**: Cmd+Z / Edit > Undo never locks or unlocks a track,
+  and they add no entry to the undo history. Only the menu changes the lock.
+  The project is marked as changed, so save it (Cmd+S) to keep the lock.
 
 You can also lock by hand: type `#lock` into the comment, or `(L)`, `[L]` or the lock emoji into the name.
 `(L)` only counts as a word of its own: `Bass (LFO)` or `Bass(L)` are not locked.
@@ -30,6 +32,10 @@ Every height change of a locked track: dragging its lower edge, Alt-dragging (al
 the "zoom lane heights" shortcuts. Unlocked tracks behave as usual.
 
 ## Known limits (prototype)
+
+- Undo of an older step can still bring back an older name or comment: e.g. rename a track, lock it,
+  then press Cmd+Z: the rename is undone and the name loses its ` (L)`. The `#lock` in the comment
+  stays, so the track stays locked; "Unlock track height" cleans up the rest.
 
 - Automation lanes below a track are not locked.
 - The resize cursor still shows on a locked track; dragging just does nothing.
