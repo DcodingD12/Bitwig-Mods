@@ -1,0 +1,21 @@
+{
+  "manifest_version": 2,
+  "mod": {
+    "id": "track-height-lock",
+    "name": "Arranger: Track Height Lock",
+    "area": "Arranger",
+    "version": "0.1.0-dev.1",
+    "author": "local",
+    "description": "Keeps the arranger height of chosen tracks fixed. A track is locked when its name contains [L] (or the lock emoji) or its comment contains #lock.",
+    "documentation": "readme"
+  },
+  "built_against": {
+    "bitwig_version": "6.1.7",
+    "platform": "macos",
+    "architecture": "universal"
+  },
+  "resources": {
+    "readme": { "kind": "file", "path": "README.md", "media_type": "text/markdown" }
+  },
+  "requires": []
+}

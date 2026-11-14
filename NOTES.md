@@ -1,45 +1,52 @@
 # NOTES – Bitwig-Mods für Patchbay (BML)
 
-## Ziel
-Display-Skalierung in Bitwig (Settings > Display > Scaling) per Maus-Ziehen ändern, möglichst feiner als 25 %.
+## Umgebung
+- BML 0.36.0-dev.13 unter `/Applications/BML-0.36.0-dev.13-macos` (Doku: `docs/sdk/README.md`, Modkit: `modkit/`).
+- Bitwig Studio 6.1.7 macOS, Jars unter `/Applications/Bitwig Studio.app/Contents/Java/`.
+- JDK 25: `/opt/homebrew/opt/openjdk@25` (nur in den Skripten benutzt, keine Shell-Konfiguration geändert).
+- Bauen: `sh tools/build-mod.sh <mod-ordner>` -> `out/<mod-id>/` (helper.jar, mod.json, README.md).
+  Das Compile-Jar `build/bitwig-compile.jar` entsteht beim ersten Bau (nie teilen/committen).
+- Tests: `python3 -m unittest discover -s tools` (Manifest-Skript), `sh tools/test-java.sh track-height-lock` (Sperr-Regel).
+- Offline-Check (`loader/prepare-mod.sh`) überschreibt `loader/mod-runtime` im BML-Ordner -> nur nach Rückfrage.
 
-## Was ist Patchbay?
-- "Patchbay Mod Loader" = BML (Bitwig Mod Loader), von "shaboogen", Tester-Version 0.36.0-dev.13.
-- Installiert unter `/Applications/BML-0.36.0-dev.13-macos` (Start: `BML.command`).
-- Patcht Bitwigs Java-Code beim Start (Bitwigs Dateien auf der Platte bleiben unverändert).
-- Mod = Ordner mit `mod.json` + `helper.jar` (Java-Code mit `@Hook`-Methoden). Doku: `docs/sdk/README.md` im BML-Ordner.
-- Einstellungen der Mods: `~/Library/Application Support/BML`.
-- Mods-Releases: https://github.com/shaboogen-dev/Mods/releases
+## Mod: track-height-lock (Spurhöhe sperren)
 
-## Erkenntnisse (Bitwig 6.1.7 macOS, nur gelesen, nichts geändert)
-- Gespeichert wird die Skalierung in `~/Library/Application Support/Bitwig/Bitwig Studio/prefs/6.1.7.prefs`
-  (Bitwigs Binärformat, Werte als double, z. B. 1.0 / 1.75 / 2.0 / 2.25).
-- Datenmodell `dSp` (Felder `custom_scaling_factor`, `should_use_automatic_scaling_factor`, ...).
-  Jeder Setter rundet über `com.bitwig.base.geom.YEs`: `round(scale * 4)`, begrenzt auf 1..20 Viertel.
-- Das Fenster (`dwe`) gibt die Skalierung als **ganze Zahl von Vierteln** an alle Widgets weiter
-  (`dwF.ZeX()I`, Standard 4 = 100 %). Pixel-Umrechnung `YEs.beI(JI)J` / `YEs.Gef(JI)J` rechnet fest mit 4.
-  => 25-%-Schritte sind Bitwigs internes Koordinatensystem, nicht nur eine UI-Grenze.
-- Die Zeile "- 100% +" baut `dSt.Gef(LdSp;)V`. Der Prozentwert ist ein Zahlenfeld `dPn` (Min 0.25, Max 4.0).
-  Bitwig schaltet dort `can_adjust_value_with_mouse` per `tWW(false)` absichtlich aus (und `should_show_bar` per `af(false)`).
-- Namen 6.1.7 -> 6.1.4: `dSt`=`dQL`, `dPn`=`dNN`, `dPp`=`dNP`, `tWW(Z)V`=`LaE(Z)V`, `dSp`=`dQI`
-  (aus `maps/macos-6.1.7-map1/remap/macos-6.1.4__macos-6.1.7.tsv.gz`).
-- Controller-Script-API: kein Zugriff auf die Skalierung. Es gibt nur die Aktionen `increase_gui_scaling` / `decrease_gui_scaling` (je 25 %).
+### Erkenntnisse (Bitwig 6.1.7, nur gelesen)
+- Spurhöhe im Arranger = Property `clip_lane_height` (int, Standard 43) in den Display-Einstellungen
+  einer Spur: Datenklasse `ydZ` (Basis `Sc`, Feld `Sc.y3f`), Meta-Klasse `ctK`.
+- Setter-Kette: `Sc.Gef(int)` -> `Sc.Heb(int)` (begrenzt) -> `Sc.iMb(int)` (nur bei Änderung) -> `Sc.PJ3(int)` (schreibt, Undo, meldet UI).
+- Wege dorthin:
+  - Ziehen am Spurrand: `bvd` (Resize-Callback `dYW` des Widgets `dYU`) -> `zCn.Gef(int,bool)` = `kRM.Gef` -> `sJU.BBg` -> `qxz.beI` -> Lambda -> `ydZ.Gef(int)`.
+  - Mit Modifier ziehen (alle Spuren): `bvd` -> `uVN.sCA(int)` -> `GJy.sCA(int)` -> pro Spur `ydZ.Gef(int)`.
+  - Zoom-Kürzel `arranger_zoom_in/out_lane_heights_all/_selected` (Aktionen in `aCZ`): `aGq`/`buZ` -> Widget `dYU.BBg(long)` (+20 px), Bindung -> `ijY.setIntegerValue` -> `dfT.Gef` -> `ctK.Gef(ydZ,..)` -> `ydZ.Gef(int)`.
+  - Neue Spur: `oKd` setzt `last_clip_lane_height` (aus `Dbp`) per `bjq.Gef(int)`.
+  - Undo/Sync: `ctK.beI(ydZ,..)` -> direkt `iMb` (am Hook vorbei).
+  - Laden: `ctK.sCA(ydZ,..)` schreibt das Feld direkt (am Hook vorbei).
+- Getrennt davon: Automations-Lanes (`Xsy`, Property `arranger_automation_editor_height`), Detail-Editor (`ucp`/`t3h` `lane_height`).
+- Spur: `ydZ.p1J()` -> `sJU`; Name `rMD.cb_()` (displayed_title), Titel `rMD.eXf()`, Kommentar `rMD.wze()`.
+- Namen 6.1.4 (macOS): Sc=`Hea`, ydZ=`hPk`, sJU=`zwV`, rMD=`cXR`, Heb=`TtY`, iMb=`fJR`, p1J=`Pgx`, wze=`AgD`, cb_=`ca_`.
 
-## Entscheidungen
-- Prototyp = Variante A: ein `REPLACE_CALL`-Hook, der `tWW(false)` durch `tWW(true)` ersetzt -> Ziehen geht, aber in 25-%-Schritten.
-- `built_against` = macOS 6.1.7 (Same-Build, laut BML-Doku erlaubt). Läuft nur auf genau diesem Bitwig-Build.
-  Für alle Versionen müsste man gegen 6.1.4 bauen (dafür fehlt die 6.1.4-`bitwig.jar`).
+### Entscheidungen
+- Ein Hook: `REPLACE_CALL` in `Sc.Heb(I)V` auf den Aufruf `Sc.iMb(I)V`. Gesperrte Spur -> Aufruf fällt weg.
+  Deckt Ziehen, Alt-Ziehen, Zoom-Kürzel und alle Bindungen ab; Laden und Undo bleiben unberührt.
+- Sperre pro Spur ohne eigene Speicherung: Name enthält `[L]` (oder Schloss-Emoji) oder Kommentar enthält `#lock`.
+  Wird so automatisch mit dem Projekt gespeichert.
+- `built_against` = macOS 6.1.7 (läuft nur genau auf diesem Build).
 
-## Stand
-- [x] Mod-Quelle `settings-scaling-drag/` (mod.json, build.json, README, Hook-Klasse)
-- [x] `tools/build-mod.sh` (Bauen auf macOS), `tools/finish_manifest.py` + Tests
-- [ ] Bauen: braucht ein JDK 21+ (javac). Bitwigs Java reicht nur fürs Modkit, nicht zum Kompilieren.
-- [ ] Offline-Check (`prepare-mod.sh`) und Test in Bitwig über Patchbay
+### Stand
+- [x] Untersuchung, Prototyp gebaut (`out/track-height-lock`), Regel-Tests grün.
+- [ ] Offline-Check (bewusst nicht ausgeführt, überschreibt BML-Dateien).
+- [ ] Test in Bitwig (Patchbay > Mods > Add Mod… > `out/track-height-lock`).
 
-## Nächste Schritte
-1. JDK installieren (Nutzer fragen!), dann `sh tools/build-mod.sh settings-scaling-drag`.
-2. Offline-Check, dann `out/settings-scaling-drag` in Patchbay hinzufügen und testen.
-3. Danach entscheiden, ob Variante B (feinere Schritte durch Umbau von `YEs`) einen Versuch wert ist.
+### Offene Risiken
+- Zoom-Kürzel: Widget wird zuerst vergrößert, Modell lehnt ab -> Zeile kann kurz falsch aussehen.
+- Resize-Cursor erscheint weiter auf gesperrten Spuren.
+- Automations-Lanes werden nicht gesperrt.
 
-## Tests
-`python3 -m unittest discover -s tools`
+### Ausbaustufe (Ideen)
+1. Aktion "Spurhöhe sperren/entsperren" im Spur-Kontextmenü über das Framework "action-menu-composition-framework"
+   (setzt/entfernt `#lock` im Kommentar).
+2. Am Widget `dYU` vertikales Resizing abschalten (`is_vert_resizing_enabled`), damit kein Cursor/kein Zieh-Griff erscheint.
+3. Schloss-Symbol im Spurkopf (Hook im Spurkopf-Builder, aufwendig) – oder einfach Emoji im Namen.
+4. Option "alle Spuren sperren" über BML-Settings (`MOD.settings()`), Automations-Lanes mit sperren.
+5. Gegen 6.1.4-Namen bauen, damit es auf allen Versionen läuft.

@@ -24,6 +24,10 @@ case "$(uname -m)" in
   arm64) JAVA="/Applications/Bitwig Studio.app/Contents/PlugIns/JavaVM-arm64.bundle/Contents/Home/bin/java" ;;
   *)     JAVA="/Applications/Bitwig Studio.app/Contents/PlugIns/JavaVM-x64.bundle/Contents/Home/bin/java" ;;
 esac
+# Prefer the Homebrew JDK 25 if it is there (only used inside this script, nothing is changed globally).
+if [ -z "${JAVAC:-}" ] && [ -x /opt/homebrew/opt/openjdk@25/bin/javac ]; then
+  JAVAC=/opt/homebrew/opt/openjdk@25/bin/javac
+fi
 JAVAC="${JAVAC:-javac}"
 JAR_TOOL="${JAR_TOOL:-$(dirname "$(command -v "$JAVAC" 2>/dev/null || echo /missing/javac)")/jar}"
 
