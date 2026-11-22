@@ -1,5 +1,10 @@
 {
   "release": 21,
   "kit": true,
-  "classpath_mods": ["action-menu-composition-framework@0.8.0-dev.1"]
+  "classpath_mods": ["action-menu-composition-framework@0.8.0-dev.1"],
+  "translate_to": {
+    "build": "macos-6.1.4",
+    "installed": "macos-6.1.7",
+    "why": "The Java source uses Bitwig 6.1.7 (macOS) names, because only that jar is installed. tools/translate-mod.sh translates the built helper.jar and hooks to 6.1.4 names with BML's own remapper and checks the round trip."
+  }
 }

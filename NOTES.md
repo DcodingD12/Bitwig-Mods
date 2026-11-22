@@ -6,7 +6,7 @@
 - JDK 25: `/opt/homebrew/opt/openjdk@25` (nur in den Skripten benutzt, keine Shell-Konfiguration geändert).
 - Bauen: `sh tools/build-mod.sh <mod-ordner>` -> `out/<mod-id>/` (helper.jar, mod.json, README.md).
   Das Compile-Jar `build/bitwig-compile.jar` entsteht beim ersten Bau (nie teilen/committen).
-- Tests: `python3 -m unittest discover -s tools` (Manifest-Skript), `sh tools/test-java.sh track-height-lock` (Sperr-Regel).
+- Tests: `python3 -m unittest discover -s tools` (Manifest-Skript, translate_hooks), `sh tools/test-java.sh track-height-lock` (Sperr-Regel).
 - Offline-Check (`loader/prepare-mod.sh`) überschreibt `loader/mod-runtime` im BML-Ordner -> nur nach Rückfrage.
 
 ## Mod: track-height-lock (Spurhöhe sperren)
@@ -69,18 +69,40 @@
 - Undo/Redo anderer Schritte setzt einfach den gespeicherten alten/neuen Wert (`dhd` -> `JDx.Gef(Object)`), ohne Prüfung
   -> kein Absturz/Abbruch, aber ältere Schritte können Name/Kommentar auf alten Stand setzen (Markierung weg oder zurück).
 
+### Referenz 6.1.4 (Version 0.3.0-dev.1)
+- Nur die 6.1.7-macOS-Jar ist da; keine 6.1.4-Jar, kein BML-Workspace (SourcePorter, port_manifest.py, mod_uses.py fehlen).
+  Map-Packs im Install nur für macOS-Ziele (6.0–6.1.7), keine Windows-/Linux-Packs.
+- Weg ohne 6.1.4-Jar: Quelltext bleibt in 6.1.7-Namen, Bau + modkit finish gegen die echte 6.1.7-Jar; danach
+  `tools/translate-mod.sh` (von build-mod.sh aufgerufen, gesteuert über build.json `translate_to`):
+  1. `tools/invert_remap.py`: Umkehrung von `maps/macos-6.1.7-map1/remap/macos-6.1.4__macos-6.1.7.tsv.gz`
+     (eindeutig umkehrbar, 639 537 Zuordnungen), H-Zeilen aus der 6.1.7-Jar -> `build/macos-6.1.7__macos-6.1.4.tsv.gz`.
+  2. BML's `loader/tools/bitwig-helper-remapper.jar` übersetzt helper.jar nach 6.1.4 (0 Warnungen).
+  3. `tools/translate_hooks.py` übersetzt die Hook-Ziele, `finish_manifest.py` baut mod.json, `tools/make_uses.py` schreibt uses.tsv
+     (deklarierende Klasse über die 6.1.7-Hierarchie, streng gegen die Remap geprüft).
+  4. Prüfungen: Rundreise Code (zurück mit offizieller Remap = gleicher Code wie 6.1.7-Build), Rundreise Hooks,
+     `tools/check_uses.py` gegen alle installierten Packs (nur lesend).
+- Ergebnis: verfügbar macOS 6.1.2, 6.1.3, 6.1.4 (Referenz), 6.1.7. Nicht verfügbar 6.0, 6.1, 6.1.1: es fehlt nur
+  `AJH.Z1C(Z)V` (6.1.4) = `TzU.nhI(Z)V` (6.1.7) = Setter von `is_modified`.
+  Möglicher Ausweg (nicht eingebaut, Verhalten soll gleich bleiben): `TzU.iUU().setBoolValue(true)`
+  (6.1.4 `AJH.Guv()` + `lBQ.setBoolValue`), beide Namen sind in 6.0/6.1/6.1.1 vorhanden; vorher auf 6.1.7 testen.
+- Namen 6.1.7 -> 6.1.4 (Auszug): Sc=Hea, ydZ=hPk, sJU=zwV, rMD=cXR, gEH=TL, kRM=jJs, kd=Zb1, CmH=g2L, TzU=AJH,
+  bju=big, GRp=ICh, dgs=dfg, dgm=deZ, dgT=dfL, ytz=oDc; Heb(I)=TtY, iMb=fJR, p1J=Pgx, wze=AgD, eXf=Dq, cb_=ca_,
+  cc_=cb_ (Achtung: verschoben!), d_=d_, rMD.Heb(String)=TtY, RiZ=FXc, jTs=ucQ, mEL=tp2, nhI=Z1C, dvk=Grk, unz=UNj, MgQ=FzB.
+- Offline-Check (`loader/prepare-mod.sh`) NICHT ausgeführt (überschreibt loader/mod-runtime) -> Nutzer-Schritt.
+
 ### Entscheidungen
 - Ein Hook: `REPLACE_CALL` in `Sc.Heb(I)V` auf den Aufruf `Sc.iMb(I)V`. Gesperrte Spur -> Aufruf fällt weg.
   Deckt Ziehen, Alt-Ziehen, Zoom-Kürzel und alle Bindungen ab; Laden und Undo bleiben unberührt.
 - Sperre pro Spur ohne eigene Speicherung: Name enthält `(L)`/`[L]` (oder Schloss-Emoji) oder Kommentar enthält `#lock`.
   Wird so automatisch mit dem Projekt gespeichert.
-- `built_against` = macOS 6.1.7 (läuft nur genau auf diesem Build).
+- Bis 0.2.3: `built_against` = macOS 6.1.7. Ab 0.3.0: `built_against` = macOS 6.1.4 (siehe "Referenz 6.1.4").
 
 ### Stand
 - [x] Untersuchung, Prototyp gebaut (`out/track-height-lock`), Regel-Tests grün.
 - [x] Kontextmenü (0.2.0/0.2.1) gebaut und kompiliert.
 - [x] 0.2.2-dev.1: " (L)" im Namen, gebaut, ZIP erstellt (altes 0.2.1-ZIP gelöscht).
-- [x] 0.2.3-dev.1: Sperren/Entsperren ohne Undo, gebaut, ZIP `out/track-height-lock-0.2.3-dev.1.zip` (0.2.2-ZIP gelöscht).
+- [x] 0.2.3-dev.1: Sperren/Entsperren ohne Undo, gebaut.
+- [x] 0.3.0-dev.1: Referenz 6.1.4 (übersetzt), ZIP `out/track-height-lock-0.3.0-dev.1.zip` (0.2.3-ZIP gelöscht).
 - [ ] Offline-Check (bewusst nicht ausgeführt, überschreibt BML-Dateien).
 - [ ] Test in Bitwig (Patchbay > Mods > Add Mod… > `out/track-height-lock`, Framework "Actions and Menus" mit aktivieren).
 

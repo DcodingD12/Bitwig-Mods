@@ -82,6 +82,11 @@ python3 "$ROOT/tools/finish_manifest.py" "$MOD/mod.json" "$WORK/hooks.json" "$OU
 cp "$MOD/README.md" "$OUT/"
 if [ -d "$MOD/package" ]; then cp -R "$MOD/package/." "$OUT/"; fi
 
+# 9. Optional: move the names to a reference build (build.json "translate_to"), see tools/translate-mod.sh.
+if python3 -c 'import json,sys; sys.exit(0 if "translate_to" in json.load(open(sys.argv[1])) else 1)' "$MOD/build.json" 2>/dev/null; then
+  sh "$ROOT/tools/translate-mod.sh" "$MOD_ID"
+fi
+
 echo "BUILD_OK $OUT"
 echo "Offline check (writes into BML's loader/mod-runtime, Bitwig itself is not changed):"
 echo "  mkdir -p ~/check-mods && cp -R \"$OUT\" ~/check-mods/ && sh \"$BML/loader/prepare-mod.sh\" \"$BITWIG_JAVA_DIR\" ~/check-mods"

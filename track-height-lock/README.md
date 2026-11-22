@@ -31,6 +31,20 @@ The ` (L)` is part of the real track name, so it also shows in the mixer and in 
 Every height change of a locked track: dragging its lower edge, Alt-dragging (all tracks),
 the "zoom lane heights" shortcuts. Unlocked tracks behave as usual.
 
+## Bitwig versions
+
+Written against Bitwig 6.1.4 names (macOS), so BML's map packs translate it to other versions.
+Checked offline against the map packs in BML 0.36.0-dev.13 (names only):
+
+| Bitwig (macOS) | Available |
+|---|---|
+| 6.1.7, 6.1.3, 6.1.2 | yes |
+| 6.1.4 | yes (the reference build) |
+| 6.1.1, 6.1, 6.0 | no: one name (marking the project as changed) has no counterpart there |
+
+Windows and Linux were not checked (no map packs for them in this BML install).
+Only Bitwig 6.1.7 on macOS has been used in practice.
+
 ## Known limits (prototype)
 
 - Undo of an older step can still bring back an older name or comment: e.g. rename a track, lock it,
@@ -41,4 +55,3 @@ the "zoom lane heights" shortcuts. Unlocked tracks behave as usual.
 - The resize cursor still shows on a locked track; dragging just does nothing.
 - With the zoom shortcuts the row may briefly look resized until Bitwig redraws it.
 - The menu entries are menu-only (no shortcut, not in the Commander).
-- Built for Bitwig 6.1.7 (macOS) only.
