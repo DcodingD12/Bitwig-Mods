@@ -1,6 +1,6 @@
 # Bitwig Mods
 
-Small arranger mods for [Bitwig Studio](https://www.bitwig.com/) that run on **Patch Bay** (BML, the Bitwig Mod Loader).
+Small arranger mods for [Bitwig Studio](https://www.bitwig.com/) that run on [**Patch Bay**](https://github.com/shaboogen-dev/Patchbay) (BML, the Bitwig Mod Loader).
 By Silent Orbit.
 
 | Mod | What it does |
@@ -15,17 +15,20 @@ Windows and Linux have not been checked.
 ## Requirements
 
 - Bitwig Studio **6.1.2 – 6.1.7** on **macOS** (built against 6.1.4, translated to other versions by BML's map packs).
-- Patch Bay with BML installed.
+- [Patch Bay](https://github.com/shaboogen-dev/Patchbay) with BML installed. The mods do not run without it.
 - The mod **Framework: Actions and Menus** (`action-menu-composition-framework`) must be installed and enabled.
   The mods add their menu entries and shortcut actions through it.
 
 ## Installation
 
-1. Download the ZIP of the mod you want from the [Releases page](../../releases)
+1. **Install Patch Bay first.** It is the program that loads mods into Bitwig; without it none of these mods work.
+   Get it from [github.com/shaboogen-dev/Patchbay](https://github.com/shaboogen-dev/Patchbay) and follow the
+   installation steps there.
+2. Download the ZIP of the mod you want from the [Releases page](../../releases)
    (`track-height-lock-….zip`, `track-spacer-….zip` and/or `zoom-toggle-….zip`). Don't unzip it.
-2. Open **Patch Bay**, go to **Mods > Add Mod…** and choose the ZIP.
-3. Make sure **Framework: Actions and Menus** is enabled, and enable the mod.
-4. Start Bitwig through Patch Bay. If an older version of the mod is installed, remove it first.
+3. Open **Patch Bay**, go to **Mods > Add Mod…** and choose the ZIP.
+4. Make sure **Framework: Actions and Menus** is enabled, and enable the mod.
+5. Start Bitwig through Patch Bay. If an older version of the mod is installed, remove it first.
 
 ## Track Height Lock
 
