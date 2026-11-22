@@ -70,7 +70,7 @@ public final class LockRuleTest {
         same("name remove nothing", LockRule.withoutNameTag("Bass (LFO)"), "Bass (LFO)");
         same("name remove null", LockRule.withoutNameTag(null), "");
         for (String name : new String[] {"Omnisphere", "Bass (LFO)", "Two  spaces", " lead space",
-                "trail space ", "Pad 2", "Ümlaut Spur"}) {
+                "trail space ", "Pad 2", "Ümlaut track"}) {
             same("name round trip [" + name + "]", LockRule.withoutNameTag(LockRule.withNameTag(name)), name);
         }
 

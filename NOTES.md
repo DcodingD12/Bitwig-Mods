@@ -1,294 +1,293 @@
-# NOTES – Bitwig-Mods für Patchbay (BML)
+# NOTES – Bitwig mods for Patchbay (BML)
 
-## Umgebung
-- BML 0.36.0-dev.13 unter `/Applications/BML-0.36.0-dev.13-macos` (Doku: `docs/sdk/README.md`, Modkit: `modkit/`).
-- Bitwig Studio 6.1.7 macOS, Jars unter `/Applications/Bitwig Studio.app/Contents/Java/`.
-- JDK 25: `/opt/homebrew/opt/openjdk@25` (nur in den Skripten benutzt, keine Shell-Konfiguration geändert).
-- Bauen: `sh tools/build-mod.sh <mod-ordner>` -> `out/<mod-id>/` (helper.jar, mod.json, README.md).
-  Das Compile-Jar `build/bitwig-compile.jar` entsteht beim ersten Bau (nie teilen/committen).
-- Tests: `python3 -m unittest discover -s tools` (Manifest-Skript, translate_hooks), `sh tools/test-java.sh track-height-lock` (Sperr-Regel),
-  `sh tools/test-java.sh track-spacer` (Spacer-Tags + Plan + Kopie-Regel), `sh tools/probe-layout.sh` (Layout + Malen mit echten Bitwig-Klassen).
-- Offline-Check (`loader/prepare-mod.sh`) überschreibt `loader/mod-runtime` im BML-Ordner -> nur nach Rückfrage.
+## Environment
+- BML 0.36.0-dev.13 at `/Applications/BML-0.36.0-dev.13-macos` (docs: `docs/sdk/README.md`, mod kit: `modkit/`).
+- Bitwig Studio 6.1.7 macOS, jars at `/Applications/Bitwig Studio.app/Contents/Java/`.
+- JDK 25: `/opt/homebrew/opt/openjdk@25` (only used inside the scripts, no shell configuration changed).
+- Build: `sh tools/build-mod.sh <mod-folder>` -> `out/<mod-id>/` (helper.jar, mod.json, README.md).
+  The compile jar `build/bitwig-compile.jar` is created by the first build (never share/commit it).
+- Tests: `python3 -m unittest discover -s tools` (manifest script, translate_hooks), `sh tools/test-java.sh track-height-lock` (lock rule),
+  `sh tools/test-java.sh track-spacer` (spacer tags + plan + copy rule), `sh tools/probe-layout.sh` (layout + painting with Bitwig's real classes).
+- Offline check (`loader/prepare-mod.sh`) overwrites `loader/mod-runtime` in the BML folder -> only after asking.
 
-## Mod: track-height-lock (Spurhöhe sperren)
+## Mod: track-height-lock (lock the track height)
 
-### Erkenntnisse (Bitwig 6.1.7, nur gelesen)
-- Spurhöhe im Arranger = Property `clip_lane_height` (int, Standard 43) in den Display-Einstellungen
-  einer Spur: Datenklasse `ydZ` (Basis `Sc`, Feld `Sc.y3f`), Meta-Klasse `ctK`.
-- Setter-Kette: `Sc.Gef(int)` -> `Sc.Heb(int)` (begrenzt) -> `Sc.iMb(int)` (nur bei Änderung) -> `Sc.PJ3(int)` (schreibt, Undo, meldet UI).
-- Wege dorthin:
-  - Ziehen am Spurrand: `bvd` (Resize-Callback `dYW` des Widgets `dYU`) -> `zCn.Gef(int,bool)` = `kRM.Gef` -> `sJU.BBg` -> `qxz.beI` -> Lambda -> `ydZ.Gef(int)`.
-  - Mit Modifier ziehen (alle Spuren): `bvd` -> `uVN.sCA(int)` -> `GJy.sCA(int)` -> pro Spur `ydZ.Gef(int)`.
-  - Zoom-Kürzel `arranger_zoom_in/out_lane_heights_all/_selected` (Aktionen in `aCZ`): `aGq`/`buZ` -> Widget `dYU.BBg(long)` (+20 px), Bindung -> `ijY.setIntegerValue` -> `dfT.Gef` -> `ctK.Gef(ydZ,..)` -> `ydZ.Gef(int)`.
-  - Neue Spur: `oKd` setzt `last_clip_lane_height` (aus `Dbp`) per `bjq.Gef(int)`.
-  - Undo/Sync: `ctK.beI(ydZ,..)` -> direkt `iMb` (am Hook vorbei).
-  - Laden: `ctK.sCA(ydZ,..)` schreibt das Feld direkt (am Hook vorbei).
-- Getrennt davon: Automations-Lanes (`Xsy`, Property `arranger_automation_editor_height`), Detail-Editor (`ucp`/`t3h` `lane_height`).
-- Spur: `ydZ.p1J()` -> `sJU`; Name `rMD.cb_()` (displayed_title), Titel `rMD.eXf()`, Kommentar `rMD.wze()`.
-- Namen 6.1.4 (macOS): Sc=`Hea`, ydZ=`hPk`, sJU=`zwV`, rMD=`cXR`, Heb=`TtY`, iMb=`fJR`, p1J=`Pgx`, wze=`AgD`, cb_=`ca_`.
+### Findings (Bitwig 6.1.7, read only)
+- Track height in the arranger = property `clip_lane_height` (int, default 43) in a track's display settings:
+  data class `ydZ` (base `Sc`, field `Sc.y3f`), meta class `ctK`.
+- Setter chain: `Sc.Gef(int)` -> `Sc.Heb(int)` (clamps) -> `Sc.iMb(int)` (only on change) -> `Sc.PJ3(int)` (writes, undo, informs the UI).
+- Ways to get there:
+  - Dragging the track edge: `bvd` (resize callback `dYW` of widget `dYU`) -> `zCn.Gef(int,bool)` = `kRM.Gef` -> `sJU.BBg` -> `qxz.beI` -> lambda -> `ydZ.Gef(int)`.
+  - Dragging with modifier (all tracks): `bvd` -> `uVN.sCA(int)` -> `GJy.sCA(int)` -> per track `ydZ.Gef(int)`.
+  - Zoom shortcuts `arranger_zoom_in/out_lane_heights_all/_selected` (actions in `aCZ`): `aGq`/`buZ` -> widget `dYU.BBg(long)` (+20 px), binding -> `ijY.setIntegerValue` -> `dfT.Gef` -> `ctK.Gef(ydZ,..)` -> `ydZ.Gef(int)`.
+  - New track: `oKd` sets `last_clip_lane_height` (from `Dbp`) via `bjq.Gef(int)`.
+  - Undo/sync: `ctK.beI(ydZ,..)` -> directly `iMb` (bypasses the hook).
+  - Loading: `ctK.sCA(ydZ,..)` writes the field directly (bypasses the hook).
+- Separate from this: automation lanes (`Xsy`, property `arranger_automation_editor_height`), detail editor (`ucp`/`t3h` `lane_height`).
+- Track: `ydZ.p1J()` -> `sJU`; name `rMD.cb_()` (displayed_title), title `rMD.eXf()`, comment `rMD.wze()`.
+- Names in 6.1.4 (macOS): Sc=`Hea`, ydZ=`hPk`, sJU=`zwV`, rMD=`cXR`, Heb=`TtY`, iMb=`fJR`, p1J=`Pgx`, wze=`AgD`, cb_=`ca_`.
 
-### Kontextmenü (Version 0.2.0-dev.1)
-- Framework "Actions and Menus" (`action-menu-composition-framework` 0.8.0-dev.1, im BML-Ordner installiert,
-  auf diesem Rechner schon erfolgreich für macOS 6.1.7 vorbereitet). Menü: `Menu.selection("track")`.
-- Registrierung in `mod.json` (`registrations`) + `package/actions.properties` -> `TrackHeightLockActions`.
-- Spuren aus dem Menü: `context.selection()` ist `bju` -> `bju.unz()` = `GRp` -> `GRp.MgQ()` = Liste (Spuren = `sJU`).
-  Muster abgeschaut von BML's Mod `hibernate-tracks` (dort 6.1.4-Namen `big.UNj()`, `ICh.FzB()`).
-- Kommentar setzen: `rMD.Heb(String)` (öffentlich, wie Bitwigs eigene Operation
+### Context menu (version 0.2.0-dev.1)
+- Framework "Actions and Menus" (`action-menu-composition-framework` 0.8.0-dev.1, installed in the BML folder,
+  already prepared successfully for macOS 6.1.7 on this machine). Menu: `Menu.selection("track")`.
+- Registration in `mod.json` (`registrations`) + `package/actions.properties` -> `TrackHeightLockActions`.
+- Tracks from the menu: `context.selection()` is `bju` -> `bju.unz()` = `GRp` -> `GRp.MgQ()` = list (tracks = `sJU`).
+  Pattern taken from BML's mod `hibernate-tracks` (6.1.4 names there: `big.UNj()`, `ICh.FzB()`).
+- Setting the comment: `rMD.Heb(String)` (public, like Bitwig's own operation
   `channel_properties.operations.change_comment` in `FMm`). Getter `rMD.wze()`.
-- Undo: `CmH.beI("Spurhöhe sperren", false)` öffnet einen Schritt, `CmH.beI(false)` schließt ihn,
-  bei Fehler `CmH.cov()` (Undo). Projekt über `sJU.cc_()`. (6.1.4-Namen: `g2L.cfM(String,Z)`, `cfM(Z)`, `Mb2()`.)
-- `LockRule`: `#lock` zählt nur als ganzes Wort (`#locked` nicht). `withTag` hängt " #lock" an,
-  `withoutTag` entfernt jedes `#lock` plus genau ein Leerzeichen daneben, sonst bleibt alles gleich.
-- Bitwig zeigt Spurkommentare im Mixer (Kommentar-Bereich) und im Inspector.
-- `tools/build-mod.sh` legt jetzt `classpath_mods` aus build.json (Framework-helper.jar aus BML/mods) auf den Klassenpfad.
-- 0.2.1-dev.1: Menütexte englisch ("Lock track height" / "Unlock track height"), Autor "Silent Orbit" (beibehalten).
+- Undo: `CmH.beI("<step name>", false)` opens a step, `CmH.beI(false)` closes it,
+  on failure `CmH.cov()` (undo). Project via `sJU.cc_()`. (6.1.4 names: `g2L.cfM(String,Z)`, `cfM(Z)`, `Mb2()`.)
+- `LockRule`: `#lock` only counts as a whole word (`#locked` doesn't). `withTag` appends " #lock",
+  `withoutTag` removes every `#lock` plus exactly one space next to it, everything else stays the same.
+- Bitwig shows track comments in the mixer (comment section) and in the inspector.
+- `tools/build-mod.sh` now puts `classpath_mods` from build.json (the framework's helper.jar from BML/mods) on the class path.
+- 0.2.1-dev.1: English menu texts ("Lock track height" / "Unlock track height"), author "Silent Orbit" (kept).
 
-### Name-Markierung " (L)" (Version 0.2.2-dev.1)
-- Titel-Setter: `rMD.d_(String)` (Bitwigs eigenes Umbenennen `channel_properties.operations.change_title` in `FMm`
-  ruft `gEH.d_` auf). Titel-Getter `rMD.eXf()` (Feld `scr`, kann leer sein). Angezeigter Name `rMD.cb_()`
-  (`displayed_title`, wird von Bitwig getrennt berechnet, nicht sofort im Setter).
-- Sperren: Kommentar + " #lock" und Titel + " (L)" im selben Undo-Schritt. Ohne eigenen Titel wird der
-  angezeigte Name + " (L)" als Titel gesetzt (danach ist der Name fest, folgt nicht mehr dem Gerät).
-- Entsperren: entfernt `#lock` und im Titel `(L)`, `[L]` und Schloss-Emoji (je plus ein Leerzeichen).
-  Menü zeigt "Unlock", sobald Kommentar ODER Titel/angezeigter Name eine Markierung hat.
-- `(L)` zählt nur als eigenes Wort (Regex: kein Buchstabe/Ziffer direkt davor/danach): `(LFO)`, `Bass(L)` zählen nicht.
-- Sperrprüfung liegt in `TrackLock` (ohne Framework-Abhängigkeit), damit der Hook auch ohne Framework sperrt.
-- ZIP: `out/track-height-lock-0.2.2-dev.1.zip` (Ordner `track-height-lock/` oben).
+### Name mark " (L)" (version 0.2.2-dev.1)
+- Title setter: `rMD.d_(String)` (Bitwig's own rename `channel_properties.operations.change_title` in `FMm`
+  calls `gEH.d_`). Title getter `rMD.eXf()` (field `scr`, may be empty). Displayed name `rMD.cb_()`
+  (`displayed_title`, computed separately by Bitwig, not right away in the setter).
+- Lock: comment + " #lock" and title + " (L)" in the same undo step. Without a title of its own, the
+  displayed name + " (L)" is set as the title (after that the name is fixed and no longer follows the device).
+- Unlock: removes `#lock`, and `(L)`, `[L]` and the lock emoji from the title (each plus one space).
+  The menu shows "Unlock" as soon as the comment OR the title/displayed name has a mark.
+- `(L)` only counts as a word of its own (regex: no letter/digit right before/after): `(LFO)`, `Bass(L)` don't count.
+- The lock check lives in `TrackLock` (no framework dependency), so the hook locks even without the framework.
+- ZIP: `out/track-height-lock-0.2.2-dev.1.zip` (folder `track-height-lock/` at the top).
 
-### Ohne Undo (Version 0.2.3-dev.1)
-- Undo-Aufzeichnung: jede Attribut-Änderung meldet sich über `ytz.beI(dgs, ytz, String)` beim Beobachter
-  `dgT` (gehört zum Undo-Schreiber `dgR`). `dgT.aboutToChangeAttributeValue(dgs, ytz, String)` zeichnet nur auf,
-  wenn `dgs.dvk()` true ist (Flag-Bit 16 im Konstruktor-Wert) und nicht gerade Undo/Redo läuft (`dgR.PJ3`).
-- Flags: title 410 und comment 410 (undo-fähig), displayed_title 385, is_modified 385, clip_lane_height 394 (nicht undo-fähig).
-- Ohne offene Undo-Klammer legt `diF.beI(dfz, ytz, Object)` trotzdem einen Eintrag an: entweder automatisch einen eigenen
-  Schritt oder (bei manchen Properties) angehängt an den VORHERIGEN Schritt -> Klammer weglassen reicht nicht.
-- Keine öffentliche API zum Entfernen eines Undo-Schritts (`diF`, Verlauf liegt auch auf der Platte).
-- Lösung: Hook `lock-marks-without-undo` = REPLACE_CALL in `dgT.aboutToChangeAttributeValue(Ldgs;Lytz;Ljava/lang/String;)V`
-  auf `dgs.dvk()Z` (1. Aufruf). Liefert false nur während `TrackHeightLockHooks.runWithoutUndo(...)`, nur auf dem
-  aufrufenden Thread, nur für die Attribut-Objekte `rMD.RiZ().jTs()` (title) und `.mEL()` (comment).
-- Danach `TzU.nhI(true)` = `is_modified` (selbst nicht undo-fähig), damit Bitwig beim Schließen nach Speichern fragt.
-- Undo/Redo anderer Schritte setzt einfach den gespeicherten alten/neuen Wert (`dhd` -> `JDx.Gef(Object)`), ohne Prüfung
-  -> kein Absturz/Abbruch, aber ältere Schritte können Name/Kommentar auf alten Stand setzen (Markierung weg oder zurück).
+### Without undo (version 0.2.3-dev.1)
+- Undo recording: every attribute change reports through `ytz.beI(dgs, ytz, String)` to the observer
+  `dgT` (belongs to the undo writer `dgR`). `dgT.aboutToChangeAttributeValue(dgs, ytz, String)` only records
+  if `dgs.dvk()` is true (flag bit 16 in the constructor value) and no undo/redo is running (`dgR.PJ3`).
+- Flags: title 410 and comment 410 (undoable), displayed_title 385, is_modified 385, clip_lane_height 394 (not undoable).
+- Without an open undo bracket, `diF.beI(dfz, ytz, Object)` still creates an entry: either a step of its own
+  or (for some properties) appended to the PREVIOUS step -> leaving out the bracket is not enough.
+- No public API to remove an undo step (`diF`; the history is also kept on disk).
+- Solution: hook `lock-marks-without-undo` = REPLACE_CALL in `dgT.aboutToChangeAttributeValue(Ldgs;Lytz;Ljava/lang/String;)V`
+  on `dgs.dvk()Z` (1st call). Returns false only while `TrackHeightLockHooks.runWithoutUndo(...)` runs, only on the
+  calling thread, only for the attribute objects `rMD.RiZ().jTs()` (title) and `.mEL()` (comment).
+- Afterwards `TzU.nhI(true)` = `is_modified` (not undoable itself), so Bitwig asks to save when closing.
+- Undo/redo of other steps simply sets the stored old/new value (`dhd` -> `JDx.Gef(Object)`) without any check
+  -> no crash/abort, but older steps can set name/comment back to an old state (mark gone or back).
 
-### Referenz 6.1.4 (Version 0.3.0-dev.1)
-- Nur die 6.1.7-macOS-Jar ist da; keine 6.1.4-Jar, kein BML-Workspace (SourcePorter, port_manifest.py, mod_uses.py fehlen).
-  Map-Packs im Install nur für macOS-Ziele (6.0–6.1.7), keine Windows-/Linux-Packs.
-- Weg ohne 6.1.4-Jar: Quelltext bleibt in 6.1.7-Namen, Bau + modkit finish gegen die echte 6.1.7-Jar; danach
-  `tools/translate-mod.sh` (von build-mod.sh aufgerufen, gesteuert über build.json `translate_to`):
-  1. `tools/invert_remap.py`: Umkehrung von `maps/macos-6.1.7-map1/remap/macos-6.1.4__macos-6.1.7.tsv.gz`
-     (eindeutig umkehrbar, 639 537 Zuordnungen), H-Zeilen aus der 6.1.7-Jar -> `build/macos-6.1.7__macos-6.1.4.tsv.gz`.
-  2. BML's `loader/tools/bitwig-helper-remapper.jar` übersetzt helper.jar nach 6.1.4 (0 Warnungen).
-  3. `tools/translate_hooks.py` übersetzt die Hook-Ziele, `finish_manifest.py` baut mod.json, `tools/make_uses.py` schreibt uses.tsv
-     (deklarierende Klasse über die 6.1.7-Hierarchie, streng gegen die Remap geprüft).
-  4. Prüfungen: Rundreise Code (zurück mit offizieller Remap = gleicher Code wie 6.1.7-Build), Rundreise Hooks,
-     `tools/check_uses.py` gegen alle installierten Packs (nur lesend).
-- Ergebnis: verfügbar macOS 6.1.2, 6.1.3, 6.1.4 (Referenz), 6.1.7. Nicht verfügbar 6.0, 6.1, 6.1.1: es fehlt nur
-  `AJH.Z1C(Z)V` (6.1.4) = `TzU.nhI(Z)V` (6.1.7) = Setter von `is_modified`.
-  Möglicher Ausweg (nicht eingebaut, Verhalten soll gleich bleiben): `TzU.iUU().setBoolValue(true)`
-  (6.1.4 `AJH.Guv()` + `lBQ.setBoolValue`), beide Namen sind in 6.0/6.1/6.1.1 vorhanden; vorher auf 6.1.7 testen.
-- Namen 6.1.7 -> 6.1.4 (Auszug): Sc=Hea, ydZ=hPk, sJU=zwV, rMD=cXR, gEH=TL, kRM=jJs, kd=Zb1, CmH=g2L, TzU=AJH,
+### Reference 6.1.4 (version 0.3.0-dev.1)
+- Only the 6.1.7 macOS jar is available; no 6.1.4 jar, no BML workspace (SourcePorter, port_manifest.py, mod_uses.py are missing).
+  Map packs in the install only for macOS targets (6.0–6.1.7), no Windows/Linux packs.
+- Approach without a 6.1.4 jar: the source stays in 6.1.7 names, build + modkit finish against the real 6.1.7 jar; then
+  `tools/translate-mod.sh` (called by build-mod.sh, controlled by build.json `translate_to`):
+  1. `tools/invert_remap.py`: inverse of `maps/macos-6.1.7-map1/remap/macos-6.1.4__macos-6.1.7.tsv.gz`
+     (uniquely invertible, 639 537 mappings), H rows from the 6.1.7 jar -> `build/macos-6.1.7__macos-6.1.4.tsv.gz`.
+  2. BML's `loader/tools/bitwig-helper-remapper.jar` translates helper.jar to 6.1.4 (0 warnings).
+  3. `tools/translate_hooks.py` translates the hook targets, `finish_manifest.py` builds mod.json, `tools/make_uses.py` writes uses.tsv
+     (declaring class via the 6.1.7 hierarchy, strictly checked against the remap).
+  4. Checks: code round trip (back with the official remap = same code as the 6.1.7 build), hook round trip,
+     `tools/check_uses.py` against all installed packs (read only).
+- Result: available on macOS 6.1.2, 6.1.3, 6.1.4 (reference), 6.1.7. Not available on 6.0, 6.1, 6.1.1: the only missing name is
+  `AJH.Z1C(Z)V` (6.1.4) = `TzU.nhI(Z)V` (6.1.7) = setter of `is_modified`.
+  Possible way out (not built in, behaviour should stay the same): `TzU.iUU().setBoolValue(true)`
+  (6.1.4 `AJH.Guv()` + `lBQ.setBoolValue`), both names exist in 6.0/6.1/6.1.1; test on 6.1.7 first.
+- Names 6.1.7 -> 6.1.4 (excerpt): Sc=Hea, ydZ=hPk, sJU=zwV, rMD=cXR, gEH=TL, kRM=jJs, kd=Zb1, CmH=g2L, TzU=AJH,
   bju=big, GRp=ICh, dgs=dfg, dgm=deZ, dgT=dfL, ytz=oDc; Heb(I)=TtY, iMb=fJR, p1J=Pgx, wze=AgD, eXf=Dq, cb_=ca_,
-  cc_=cb_ (Achtung: verschoben!), d_=d_, rMD.Heb(String)=TtY, RiZ=FXc, jTs=ucQ, mEL=tp2, nhI=Z1C, dvk=Grk, unz=UNj, MgQ=FzB.
-- Offline-Check (`loader/prepare-mod.sh`) NICHT ausgeführt (überschreibt loader/mod-runtime) -> Nutzer-Schritt.
+  cc_=cb_ (careful: shifted!), d_=d_, rMD.Heb(String)=TtY, RiZ=FXc, jTs=ucQ, mEL=tp2, nhI=Z1C, dvk=Grk, unz=UNj, MgQ=FzB.
+- Offline check (`loader/prepare-mod.sh`) NOT run (overwrites loader/mod-runtime) -> user step.
 
-### Entscheidungen
-- Ein Hook: `REPLACE_CALL` in `Sc.Heb(I)V` auf den Aufruf `Sc.iMb(I)V`. Gesperrte Spur -> Aufruf fällt weg.
-  Deckt Ziehen, Alt-Ziehen, Zoom-Kürzel und alle Bindungen ab; Laden und Undo bleiben unberührt.
-- Sperre pro Spur ohne eigene Speicherung: Name enthält `(L)`/`[L]` (oder Schloss-Emoji) oder Kommentar enthält `#lock`.
-  Wird so automatisch mit dem Projekt gespeichert.
-- Bis 0.2.3: `built_against` = macOS 6.1.7. Ab 0.3.0: `built_against` = macOS 6.1.4 (siehe "Referenz 6.1.4").
+### Decisions
+- One hook: `REPLACE_CALL` in `Sc.Heb(I)V` on the call `Sc.iMb(I)V`. Locked track -> the call is dropped.
+  Covers dragging, Alt-dragging, zoom shortcuts and all bindings; loading and undo stay untouched.
+- Lock per track without storage of its own: the name contains `(L)`/`[L]` (or the lock emoji) or the comment contains `#lock`.
+  That way it is saved with the project automatically.
+- Up to 0.2.3: `built_against` = macOS 6.1.7. From 0.3.0: `built_against` = macOS 6.1.4 (see "Reference 6.1.4").
 
-### Stand
-- [x] Untersuchung, Prototyp gebaut (`out/track-height-lock`), Regel-Tests grün.
-- [x] Kontextmenü (0.2.0/0.2.1) gebaut und kompiliert.
-- [x] 0.2.2-dev.1: " (L)" im Namen, gebaut, ZIP erstellt (altes 0.2.1-ZIP gelöscht).
-- [x] 0.2.3-dev.1: Sperren/Entsperren ohne Undo, gebaut.
-- [x] 0.3.0-dev.1: Referenz 6.1.4 (übersetzt), ZIP `out/track-height-lock-0.3.0-dev.1.zip` (0.2.3-ZIP gelöscht).
-- [ ] Offline-Check (bewusst nicht ausgeführt, überschreibt BML-Dateien).
-- [ ] Test in Bitwig (Patchbay > Mods > Add Mod… > `out/track-height-lock`, Framework "Actions and Menus" mit aktivieren).
+### Status
+- [x] Investigation, prototype built (`out/track-height-lock`), rule tests green.
+- [x] Context menu (0.2.0/0.2.1) built and compiled.
+- [x] 0.2.2-dev.1: " (L)" in the name, built, ZIP created (old 0.2.1 ZIP deleted).
+- [x] 0.2.3-dev.1: lock/unlock without undo, built.
+- [x] 0.3.0-dev.1: reference 6.1.4 (translated), ZIP `out/track-height-lock-0.3.0-dev.1.zip` (0.2.3 ZIP deleted).
+- [ ] Offline check (deliberately not run, overwrites BML files).
+- [ ] Test in Bitwig (Patchbay > Mods > Add Mod… > `out/track-height-lock`, enable Framework "Actions and Menus" too).
 
-### Offene Risiken
-- Zoom-Kürzel: Widget wird zuerst vergrößert, Modell lehnt ab -> Zeile kann kurz falsch aussehen.
-- Resize-Cursor erscheint weiter auf gesperrten Spuren.
-- Automations-Lanes werden nicht gesperrt.
-- " (L)" ist Teil des echten Namens: sichtbar im Mixer, in Export-/Stem-Dateinamen, für Controller-Skripte.
-- Spuren ohne eigenen Titel: nach Entsperren gleicher Name sichtbar, aber fester Titel (kein Auto-Name mehr).
-- Benennt der Nutzer eine gesperrte Spur um und löscht dabei "(L)", bleibt sie über `#lock` gesperrt.
-- Ohne Undo (0.2.3): nicht in Bitwig getestet. Ein Cmd+Z auf einen ÄLTEREN Schritt, der Name/Kommentar betraf
-  (z. B. Umbenennen vor dem Sperren), setzt den alten Wert -> " (L)" bzw. "#lock" kann verschwinden/zurückkommen.
-  Sperre bleibt, solange eine Markierung übrig ist. Ob die Engine/Controller den neuen Namen sofort sehen, ist ungeprüft.
-- Der dgT-Hook läuft bei jeder Textänderung in Bitwig (schneller Pfad: nur ein Thread-Vergleich).
+### Open risks
+- Zoom shortcuts: the widget is enlarged first, the model refuses -> the row may briefly look wrong.
+- The resize cursor still appears on locked tracks.
+- Automation lanes are not locked.
+- " (L)" is part of the real name: visible in the mixer, in export/stem file names, for controller scripts.
+- Tracks without a title of their own: after unlocking the same name is shown, but as a fixed title (no automatic name any more).
+- If the user renames a locked track and deletes "(L)", it stays locked through `#lock`.
+- Without undo (0.2.3): not tested in Bitwig. Cmd+Z on an OLDER step that touched name/comment
+  (e.g. a rename before locking) sets the old value -> " (L)" or "#lock" can disappear/come back.
+  The lock stays as long as one mark is left. Whether the engine/controllers see the new name right away is unchecked.
+- The dgT hook runs on every text change in Bitwig (fast path: just one thread comparison).
 
-### Ausbaustufe (Ideen)
-1. (erledigt: Kontextmenü)
-2. Am Widget `dYU` vertikales Resizing abschalten (`is_vert_resizing_enabled`), damit kein Cursor/kein Zieh-Griff erscheint.
-3. Schloss-Symbol: vom Nutzer nicht gewünscht.
-4. Option "alle Spuren sperren" über BML-Settings (`MOD.settings()`), Automations-Lanes mit sperren.
-5. Gegen 6.1.4-Namen bauen, damit es auf allen Versionen läuft.
+### Next steps (ideas)
+1. (done: context menu)
+2. Switch off vertical resizing on widget `dYU` (`is_vert_resizing_enabled`), so no cursor/drag handle appears.
+3. Lock symbol: not wanted by the user.
+4. Option "lock all tracks" via BML settings (`MOD.settings()`), lock automation lanes too.
+5. Build against 6.1.4 names so it runs on all versions.
 
-## Mod: track-spacer (Gegenstück zu REAPER "Insert spacer before/after tracks")
+## Mod: track-spacer (counterpart of REAPER's "Insert spacer before/after tracks")
 
-### Entscheidung (0.2.0-dev.1): reiner Abstand, KEINE Zusatzspur
-- 0.1.0-dev.1 (leere Audiospur als Spacer) vom Nutzer abgelehnt -> komplett ersetzt.
-- Jetzt: leere Lücke von N px über/unter einer Spur im Arranger (Spurkopf, Timeline, Launcher-Spalte im Arranger).
-- Speicher: Tags im Spurkommentar `#spacer-before` / `#spacer-after`, optional `=N` (Standard 16 px, 1..400).
-  Wird mit dem Projekt gespeichert; Menüaktionen sind je ein Undo-Schritt.
-- Menü (menuOnly, `Menu.selection("track")`): "Insert Spacer Before Tracks" (erste Spur jedes Blocks bekommt
-  `#spacer-before`), "Insert Spacer After Tracks" (letzte Spur bekommt `#spacer-after`), "Remove Spacer"
-  (entfernt jede Lücke, die eine gewählte Spur berührt: eigene Tags, `after` der Spur darüber, `before` der Spur darunter).
-  Schon vorhandene Lücke an der Stelle (Tag einer der beiden Nachbarn) -> nichts doppelt. Logik in `SpacerPlan`/`SpacerRule` (getestet).
+### Decision (0.2.0-dev.1): a pure gap, NO extra track
+- 0.1.0-dev.1 (an empty audio track as spacer) was rejected by the user -> replaced completely.
+- Now: an empty gap of N px above/below a track in the arranger (track header, timeline, launcher column in the arranger).
+- Storage: tags in the track comment `#spacer-before` / `#spacer-after`, optionally `=N` (default 16 px, 1..400).
+  Saved with the project; the menu actions are one undo step each.
+- Menu (menuOnly, `Menu.selection("track")`): "Insert Spacer Before Tracks" (the first track of each block gets
+  `#spacer-before`), "Insert Spacer After Tracks" (the last track gets `#spacer-after`), "Remove Spacer"
+  (removes every gap touching a selected track: its own tags, `after` of the track above, `before` of the track below).
+  A gap already at that spot (tag of either neighbour) -> nothing doubled. Logic in `SpacerPlan`/`SpacerRule` (tested).
 
-### Erkenntnisse Layout (Bitwig 6.1.7, nur gelesen)
-- Jede Arranger-Zeile einer (Nicht-Gruppen-)Spur ist ein `bvc` (extends `bvg` -> `bDw` ... -> `dvl`).
-  Gebaut in `bvc.Gef(YCD, bvi, aZJ)`; `bvi` ist die Variante: Spurkopf (`bub`/`bui`/`bum` via `buT`),
-  Timeline (`timeline.nSh` -> `uLT`/`IQP`, bvi `NlD`), Launcher-Slots im Arranger (`bcW`, "arranger_matrix_track_slots_widget"),
-  Launcher-Steuerung (`bgI`, "track_launcher_controls_widget").
-- Aufbau: senkrechter Stapel `dXL.sSO()` [ `dYU` (Höhe = `clip_lane_height`, Bindung `YCD.rcd()->ZhV.LYs()`), Automations-Container `dZi` ];
-  letzter Schritt `this.beI(dAc)` (= `dvl.beI(dAc)`, setzt den Zeileninhalt).
-- Einziger Leser von `ZhV.LYs()` (Spurhöhe fürs Layout) ist `bvc` -> Zeilen stapeln sich nur über Widget-Größen;
-  Spurkopf/Timeline/Launcher bleiben synchron, solange alle `bvc` gleich behandelt werden.
-- Abstandshalter: `dXL.sCA(long)` hängt einen festen `dZl` an (Einheit: logische Pixel, Bitwig nutzt z. B. 2/4),
-  `dXL.Gef(min,max)` fügt oben ein. `dZl.sCA(J)` = min, `dZl.MgQ(J)` = max, Änderung -> `unz(J)` -> Neu-Layout.
-  `dXL.needsGapBetweenWidgets` gibt false, wenn ein Nachbar `oSd()` (Spacer) ist -> 0-px-Spacer ändern nichts.
-- Gruppen: `GJy` ist kein `YCD`; Gruppenkopf = `buH` (eigene Klasse, Höhe über `BPz.LYs()`). Master-Spur der Gruppe `wDt.smz()`.
-- Kommentar beobachtbar: `rMD.GKF()` -> `Vyh` (neu je Aufruf, Attribut `kd.mEL()`), `addListener(NVD)`;
-  `NVD.eventOccurred(Object)` (Name stabil). Setter-Kette `Heb` -> `iMb` -> `PJ3` -> `gNZ` feuert `wLf.fireValueChanged(GKF(),..)`.
-- Aktivieren `rMD.ZRB(Z)` (6.1.4 `qoU`), Spur-Löschen `qxz.beI(List,CmH)` (in 6.1.7 privat), `CmH.Gef(Collection)` (öffentlich) –
-  aus 0.1.0 bekannt, jetzt nicht mehr benutzt.
+### Layout findings (Bitwig 6.1.7, read only)
+- Every arranger row of a (non-group) track is a `bvc` (extends `bvg` -> `bDw` ... -> `dvl`).
+  Built in `bvc.Gef(YCD, bvi, aZJ)`; `bvi` is the variant: track header (`bub`/`bui`/`bum` via `buT`),
+  timeline (`timeline.nSh` -> `uLT`/`IQP`, bvi `NlD`), launcher slots in the arranger (`bcW`, "arranger_matrix_track_slots_widget"),
+  launcher controls (`bgI`, "track_launcher_controls_widget").
+- Structure: vertical stack `dXL.sSO()` [ `dYU` (height = `clip_lane_height`, binding `YCD.rcd()->ZhV.LYs()`), automation container `dZi` ];
+  last step `this.beI(dAc)` (= `dvl.beI(dAc)`, sets the row's content).
+- The only reader of `ZhV.LYs()` (track height for layout) is `bvc` -> rows stack by widget sizes only;
+  track header/timeline/launcher stay in sync as long as all `bvc` are treated the same.
+- Spacers: `dXL.sCA(long)` appends a fixed `dZl` (unit: logical pixels, Bitwig uses e.g. 2/4),
+  `dXL.Gef(min,max)` inserts at the top. `dZl.sCA(J)` = min, `dZl.MgQ(J)` = max, change -> `unz(J)` -> relayout.
+  `dXL.needsGapBetweenWidgets` returns false if a neighbour is `oSd()` (a spacer) -> 0 px spacers change nothing.
+- Groups: `GJy` is not a `YCD`; group header = `buH` (class of its own, height via `BPz.LYs()`). The group's master track is `wDt.smz()`.
+- Comment observable: `rMD.GKF()` -> `Vyh` (new per call, attribute `kd.mEL()`), `addListener(NVD)`;
+  `NVD.eventOccurred(Object)` (stable name). Setter chain `Heb` -> `iMb` -> `PJ3` -> `gNZ` fires `wLf.fireValueChanged(GKF(),..)`.
+- Activate `rMD.ZRB(Z)` (6.1.4 `qoU`), delete tracks `qxz.beI(List,CmH)` (private in 6.1.7), `CmH.Gef(Collection)` (public) –
+  known from 0.1.0, no longer used.
 
-### Umsetzung
-- Hook `track-row-spacers`: REPLACE_CALL in `bvc.Gef(LYCD;Lbvi;LaZJ;)V` auf `bvc.beI(LdAc;)V` (1. Aufruf).
-  Bridge `TrackSpacerHooks.setRowContent(bvc, dAc)`: packt den Inhalt in `dXL.sSO()` [dZl oben, Inhalt, dZl unten], beide 0 px,
-  Größe aus dem Kommentar; Register `WeakHashMap<sJU, List<WeakReference<dZl>[]>>`; je Spur ein Kommentar-Listener -> `refresh`.
-  Fehler -> Bitwigs Original-Inhalt, einmal geloggt.
-- Nur Spuren in `group.xDy()` (main_tracks), keine Gruppen-Master-Spur (`group.smz() == track`) -> sonst könnte Kopf/Timeline auseinanderlaufen.
-  Gruppen-Spuren selbst werden im Menü übergangen.
-- Alle `bvc`-Zeilen solcher Spuren bekommen den Stapel, auch ohne Tag (damit Tags später live wirken).
-- 6.1.4-Namen: bvc=btR, Gef(YCD,bvi,aZJ)=MRY, beI(dAc)=cfM, dAc=dyC, YCD=iKU.
+### Implementation
+- Hook `track-row-spacers`: REPLACE_CALL in `bvc.Gef(LYCD;Lbvi;LaZJ;)V` on `bvc.beI(LdAc;)V` (1st call).
+  Bridge `TrackSpacerHooks.setRowContent(bvc, dAc)`: puts the content into `dXL.sSO()` [dZl on top, content, dZl below], both 0 px,
+  size from the comment; registry `WeakHashMap<sJU, List<WeakReference<dZl>[]>>`; one comment listener per track -> `refresh`.
+  On failure -> Bitwig's original content, logged once.
+- Only tracks in `group.xDy()` (main_tracks), no group master track (`group.smz() == track`) -> otherwise header/timeline could drift apart.
+  Group tracks themselves were skipped in the menu (until 0.2.4).
+- All `bvc` rows of such tracks get the stack, even without a tag (so tags take effect live later).
+- 6.1.4 names: bvc=btR, Gef(YCD,bvi,aZJ)=MRY, beI(dAc)=cfM, dAc=dyC, YCD=iKU.
 
-### Version 0.2.1-dev.1 (nach Nutzertest in Bitwig)
-- Problem 1: Duplizieren übernahm `#spacer-before/-after` (Kommentar wird mitkopiert).
-  - Wege: Duplicate -> `CmH.sCA(List,Z)` -> `GJy.beI(List,int,Z,PPR,Eoh)` -> Clipboard-Op (`gHg`-Unterklassen
-    `IdK`/`WCT`/`qHV`/`Cux`...) -> pro Spur `GJy.beI(sJU,int)`. Copy & Paste gleich. Verschieben (`CyJ`/`M1M`) über `unz(PiT,int)`,
-    Gruppieren/Umhängen (`PJ3(List)`, privates `beI(GJy,sJU,int)`) ruft aber AUCH `GJy.beI(sJU,int)` – mit denselben Objekten,
-    teils kurz abgehängt -> „keine Eltern“ taugt nicht als Kopie-Test.
-  - Lösung: Hook `copies-without-spacers` = ENTRY auf `GJy.beI(Lcom/bitwig/flt/document/core/master/sJU;I)V` (6.1.4 `ruS.cfM`).
-    Merkliste `SEEN` (WeakHashMap): beim ersten Zeilenaufbau bzw. ersten Einfügen pro Projekt alle Spuren des Projekts
-    (`sJU.TUb()` = Wurzelgruppe, rekursiv `xDy()`) als gesehen markieren. Eingefügte Spur (bei Gruppen auch alle Spuren darin),
-    die nie gesehen wurde = Kopie -> `SpacerRule.withoutAll` per `Heb(String)`, danach als gesehen markieren.
-    Läuft VOR dem Einfügen (Kopie noch nicht im Projekt) -> kein eigener Undo-Schritt.
-  - Annahme: Undo/Redo und Laden fügen Listen auf Attribut-Ebene ein (nicht über `GJy.beI(sJU,int)`); ungeprüft in Bitwig.
-  - Auch Spuren aus anderen Projekten/Presets (neu im Projekt) verlieren die Tags – gewollt.
-- Problem 2: Lücke zeigte links den blauen Streifen (und ggf. Auswahlfarbe), weil die Zeile (`bvc`/`bvV`, Eigenschaft
-  `background_color` = `dxu.jZa()`, an „ausgewählt“ gebunden) über ihre ganze Höhe malt und `dZl` durchsichtig ist.
-  - Lösung: jeder Abstandshalter steckt in einer eigenen `dXL`-Box mit Hintergrund `row.mum().SQL()` (Theme „Grey 1“, wie
-    Arranger-Panel `aZD` und Standard-Zeilenhintergrund `bvi.beI(egM)`), gesetzt per `dXM.beI(ekS)` (öffentlich).
-    Kinder malen über den Eltern-Hintergrund.
-  - Äußere Box `byf(0)`: `dXL` hat Standard-Abstand 2 px zwischen Nicht-Spacer-Kindern (`dXM.LYs`), sonst bekäme jede Spur +4 px.
-  - Ungeprüft: ob der Streifen vom Eltern-Hintergrund kommt (dann abgedeckt) oder als Overlay nach den Kindern gemalt wird
-    (dann bliebe er sichtbar); ob „Grey 1“ exakt dem sichtbaren Arranger-Schwarz entspricht; ob eine leere `dXL` ohne Padding 0 px hoch ist.
+### Version 0.2.1-dev.1 (after the user's test in Bitwig)
+- Problem 1: duplicating copied `#spacer-before/-after` (the comment is copied along).
+  - Paths: Duplicate -> `CmH.sCA(List,Z)` -> `GJy.beI(List,int,Z,PPR,Eoh)` -> clipboard op (`gHg` subclasses
+    `IdK`/`WCT`/`qHV`/`Cux`...) -> per track `GJy.beI(sJU,int)`. Copy & paste the same. Moving (`CyJ`/`M1M`) via `unz(PiT,int)`,
+    but grouping/re-parenting (`PJ3(List)`, private `beI(GJy,sJU,int)`) ALSO calls `GJy.beI(sJU,int)` – with the same objects,
+    sometimes briefly detached -> "has no parent" is no good test for a copy.
+  - Solution: hook `copies-without-spacers` = ENTRY on `GJy.beI(Lcom/bitwig/flt/document/core/master/sJU;I)V` (6.1.4 `ruS.cfM`).
+    Memory `SEEN` (WeakHashMap): on the first row build or first insert per project, mark all tracks of the project
+    (`sJU.TUb()` = root group, recursively `xDy()`) as seen. An inserted track (for groups also all tracks inside)
+    that was never seen = a copy -> `SpacerRule.withoutAll` via `Heb(String)`, then mark it as seen.
+    Runs BEFORE inserting (the copy is not in the project yet) -> no undo step of its own.
+  - Assumption: undo/redo and loading insert lists at attribute level (not via `GJy.beI(sJU,int)`); unchecked in Bitwig.
+  - Tracks from other projects/presets (new to the project) also lose the tags – intended.
+- Problem 2: the gap showed the blue stripe on the left (and possibly the selection colour), because the row (`bvc`/`bvV`, property
+  `background_color` = `dxu.jZa()`, bound to "selected") paints over its whole height and `dZl` is transparent.
+  - Solution: each spacer sits in a `dXL` box of its own with background `row.mum().SQL()` (theme "Grey 1", like the
+    arranger panel `aZD` and the default row background `bvi.beI(egM)`), set via `dXM.beI(ekS)` (public).
+    Children paint over the parent's background.
+  - Outer box `byf(0)`: `dXL` has a default spacing of 2 px between non-spacer children (`dXM.LYs`), otherwise every track would get +4 px.
+  - Unchecked: whether the stripe comes from the parent's background (then covered) or is painted as an overlay after the children
+    (then it would stay visible); whether "Grey 1" matches the visible arranger black exactly; whether an empty `dXL` without padding is 0 px high.
 
-### Version 0.2.2-dev.1 (Fehler aus 0.2.1 behoben: gar keine Lücke mehr)
-- Nutzertest 0.2.1 (Bitwig 6.1.7, BML 0.36.0-dev.17 unter `~/Library/Application Support/PatchbayLauncher/installs/BML-0.36.0-dev.17-macos`,
-  NICHT die Installation unter /Applications): Mod geladen und vorbereitet (`PREPARE_OK ... verify`, Ersatzklassen `bvc` und `GJy`
-  geladen, `~/Library/Logs/Bitwig/BitwigStudio.log`), keine Exception, keine `[track-spacer]`-Zeile im Log -> stiller Fehler.
-- Ursache (belegt): `dXU.kwH(child)` legt nur Kinder an, die Spacer (`dZl`) sind ODER deren Max-Größe Breite>0 UND Höhe>0 hat.
-  `dZl` meldet quer zur Stapelrichtung immer 0 (`dZl.mL_()`), eine Box nur mit Spacer ist also 0 breit -> wird verworfen.
-  0.2.1 steckte jeden Spacer in eine eigene Halter-Box (für die Farbe) -> Lücke immer 0 px.
-  Reproduziert mit den echten Klassen: `track-spacer/probe/LayoutProbe.java` (`sh tools/probe-layout.sh`, nur lesend):
-  Halter 16 px, Zeilenbox 0 px.
-- Fix: wieder Spacer als direkte Kinder (wie 0.2.0). Farbe über `dXM.beI(ekS)` auf der Zeilenbox selbst: `dXL.beI(ijY, SZB)` malt den
-  Hintergrund NUR über Spacern und Lücken zwischen Kindern, nie unter dem Inhalt -> Lücke deckend in `mum().SQL()` ("Grey 1").
-  `byf(0)` entfernt (nicht nötig: neben Spacern gibt es keine Zwischenabstände).
-- Kopie-Hook defensiver: greift nur, wenn das Projekt schon angezeigt und erfasst ist (`SEEN_PROJECTS`), beim Laden nie;
-  Entscheidung in `CopyRule` (getestet). Der Hook ist an der Menü-Kette (Menü -> Kommentar -> Listener -> Lücke) nicht beteiligt.
-- Prüfungen: `sh tools/test-java.sh track-spacer` (inkl. Ablauf Menü-Tag -> Lücke, Kopie -> ohne Tag), `sh tools/probe-layout.sh`
-  (`LAYOUT_PROBE_OK`), Bau mit 2 Hooks, Rundreise OK, Namensprüfung 6.0–6.1.7 OK. Offline-Check (prepare-mod.sh) nicht ausgeführt;
-  0.2.1 mit denselben Hook-Zielen wurde aber in der echten BML-dev.17-Installation vorbereitet und verifiziert.
-- Ungetestet in Bitwig: Malen der Lückenfarbe (Probe prüft nur Layout), ob der blaue Streifen dadurch verdeckt wird, Kopie-Hook in der Praxis.
+### Version 0.2.2-dev.1 (fixes the 0.2.1 bug: no gap at all)
+- User test of 0.2.1 (Bitwig 6.1.7, BML 0.36.0-dev.17 at `~/Library/Application Support/PatchbayLauncher/installs/BML-0.36.0-dev.17-macos`,
+  NOT the install under /Applications): mod loaded and prepared (`PREPARE_OK ... verify`, replacement classes `bvc` and `GJy`
+  loaded, `~/Library/Logs/Bitwig/BitwigStudio.log`), no exception, no `[track-spacer]` line in the log -> silent failure.
+- Cause (proven): `dXU.kwH(child)` only lays out children that are spacers (`dZl`) OR whose max size has width>0 AND height>0.
+  `dZl` always reports 0 across the stacking direction (`dZl.mL_()`), so a box holding only a spacer is 0 wide -> dropped.
+  0.2.1 put each spacer into a holder box of its own (for the colour) -> gap always 0 px.
+  Reproduced with the real classes: `track-spacer/probe/LayoutProbe.java` (`sh tools/probe-layout.sh`, read only):
+  holder 16 px, row box 0 px.
+- Fix: spacers as direct children again (as in 0.2.0). Colour via `dXM.beI(ekS)` on the row box itself: `dXL.beI(ijY, SZB)` paints the
+  background ONLY over spacers and gaps between children, never under the content -> gap opaque in `mum().SQL()` ("Grey 1").
+  `byf(0)` removed (not needed: next to spacers there is no spacing).
+- Copy hook more defensive: only acts once the project is shown and recorded (`SEEN_PROJECTS`), never while loading;
+  decision in `CopyRule` (tested). The hook is not part of the menu chain (menu -> comment -> listener -> gap).
+- Checks: `sh tools/test-java.sh track-spacer` (incl. flow menu tag -> gap, copy -> without tag), `sh tools/probe-layout.sh`
+  (`LAYOUT_PROBE_OK`), build with 2 hooks, round trip OK, name check 6.0–6.1.7 OK. Offline check (prepare-mod.sh) not run;
+  but 0.2.1 with the same hook targets was prepared and verified in the real BML dev.17 install.
+- Untested in Bitwig: painting of the gap colour (the probe only checks layout), whether that covers the blue stripe, copy hook in practice.
 
-### Version 0.2.3-dev.1 (Lücke im Spurkopf war noch blau)
-- Nutzertest 0.2.2: Lücke da, Duplizieren ok, aber im Spurkopf blauer Streifen links durch die Lücke.
-- Ursache (belegt, `buT.sCA(YCD,GRp,aZJ)`): der Spurkopf ist eine NEBENEINANDER-Box `dXL.fpX()` (Abstand 1, Hintergrund `egM.zzi()`)
-  mit [Farb-/Auswahl-Widget `beI(zCn,Pv selected,Pv,Pv,buQ)`, bvc-Zeile]. Der Streifen ist ein GESCHWISTER der bvc-Zeile und so hoch
-  wie sie -> eine Lücke in der bvc lässt ihn daneben stehen. Aus der bvc heraus nicht abdeckbar.
-  Andere Ansichten: Launcher-Slots (`bcS.sCA`) und Launcher-Steuerung (`bgE.beI`) geben die bvc direkt zurück, Timeline (`nSh.sCA`)
-  setzt die bvc als Inhalt und färbt sich selbst (`nEh.cCV()`) -> dort deckt die Box der bvc (Kind) den Eltern-Hintergrund ab.
-  `buT` erbt auch von `bvV` (background_color an "ausgewählt") -> wird in den Lücken ebenfalls von unserer Box (Kind) überdeckt.
-- Fix: Im Spurkopf keine Spacer in der bvc (ThreadLocal `IN_HEADER` um den bvc-Aufbau), stattdessen Box [Spacer, ganze Kopf-Box, Spacer]
-  um den Inhalt des Spurkopfs. Hooks: REPLACE_CALL in `buT.sCA(LYCD;LGRp;LaZJ;)V` auf `bvc.beI(LYCD;Lbvi;LaZJ;)Lbvc;`
-  (`header-row-without-spacers`) und auf `buT.beI(LdAc;)V` (`header-spacers`). 6.1.4: buT=btI, sCA(YCD,GRp,aZJ)=Hnt.
-- Farbe: `mum().zzi()` = Theme "Grey 1" (Standard Grauwert 26 = #1A1A1A, in `egM` per `beI("Grey 1", 26)` definiert) – dieselbe Farbe,
-  die Bitwig zwischen den Spuren malt (Spurkopf-Box `buT`, Timeline-Spurliste `timeline.mFm`). Als egG-Objekt übergeben -> Theme-Mods greifen.
-- Verifiziert mit echten Bitwig-Klassen (`sh tools/probe-layout.sh`): `PaintProbe` baut die Box wie der Hook, layoutet und malt sie in ein
-  protokollierendes Grafik-Objekt (Proxy auf `com.bitwig.graphics.ijY`): gemalt werden genau die Lücken-Rechtecke über die volle Breite in
-  RGB 0.102/0.102/0.102, nichts unter dem Inhalt. `LayoutProbe`: Höhen live korrekt.
-- Unverifiziert: Malreihenfolge im echten Fenster (Eltern vor Kindern angenommen, Standard), mögliche Overlays nach den Kindern
-  (z. B. „Muted by Audition“ in `bDp`), echtes Bild in Bitwig.
+### Version 0.2.3-dev.1 (the gap in the track header was still blue)
+- User test of 0.2.2: gap there, duplicating ok, but in the track header a blue stripe on the left through the gap.
+- Cause (proven, `buT.sCA(YCD,GRp,aZJ)`): the track header is a SIDE-BY-SIDE box `dXL.fpX()` (spacing 1, background `egM.zzi()`)
+  with [colour/selection widget `beI(zCn,Pv selected,Pv,Pv,buQ)`, bvc row]. The stripe is a SIBLING of the bvc row and as high
+  as it -> a gap inside the bvc leaves it standing next to it. Can't be covered from inside the bvc.
+  Other views: launcher slots (`bcS.sCA`) and launcher controls (`bgE.beI`) return the bvc directly, timeline (`nSh.sCA`)
+  sets the bvc as content and colours itself (`nEh.cCV()`) -> there the bvc's box (a child) covers the parent's background.
+  `buT` also inherits from `bvV` (background_color bound to "selected") -> also covered in the gaps by our box (a child).
+- Fix: no spacers in the bvc inside the track header (ThreadLocal `IN_HEADER` around building the bvc); instead a box [spacer, whole header box, spacer]
+  around the header's content. Hooks: REPLACE_CALL in `buT.sCA(LYCD;LGRp;LaZJ;)V` on `bvc.beI(LYCD;Lbvi;LaZJ;)Lbvc;`
+  (`header-row-without-spacers`) and on `buT.beI(LdAc;)V` (`header-spacers`). 6.1.4: buT=btI, sCA(YCD,GRp,aZJ)=Hnt.
+- Colour: `mum().zzi()` = theme "Grey 1" (default grey level 26 = #1A1A1A, defined in `egM` via `beI("Grey 1", 26)`) – the same colour
+  Bitwig paints between tracks (track header box `buT`, timeline track list `timeline.mFm`). Passed as an egG object -> theme mods apply.
+- Verified with Bitwig's real classes (`sh tools/probe-layout.sh`): `PaintProbe` builds the box like the hook, lays it out and paints it into a
+  recording graphics object (proxy on `com.bitwig.graphics.ijY`): exactly the gap rectangles are painted across the full width in
+  RGB 0.102/0.102/0.102, nothing under the content. `LayoutProbe`: heights correct live.
+- Unverified: paint order in the real window (parents before children assumed, the standard), possible overlays after the children
+  (e.g. "Muted by Audition" in `bDp`), the real picture in Bitwig.
 
-### Version 0.2.4-dev.1 (Gruppenspuren, Menüreihenfolge)
-- Gruppen: jede Arranger-Zeile einer Gruppe ist ein `buH` (Kopf `buC`/`buL`, Timeline `timeline.vak` mit `pOC`, Launcher `bcN`),
-  gebaut in `buH.Gef(uVN,buK,aZJ)`. Inhalt = ganzer Gruppenblock: Kopf-Box (Farbstreifen `bDm.beI(...)` INNEN, wenn `buK.Gef()`)
-  über dem aufklappbaren Container `dZi` mit den Kind-Spuren (`aZJ.Iba()`). Gesetzt per `this.beI(dAc)` in zwei Zweigen.
-  -> Hooks `group-spacers` / `group-spacers-plain`: REPLACE_CALL auf `buH.beI(LdAc;)V` Aufruf 1 und 2 (Manifest zählt nach eigenen
-  Ersetzungen -> beide `occurrence 1`, laut Modkit-README korrekt). Gruppe über `bDp.lN_()`. "Before" über dem Gruppenkopf,
-  "After" nach dem Gruppenende (aufgeklappt unter den Kindern, eingeklappt direkt unter dem Kopf). Kopf/Timeline/Launcher alle `buH` -> bündig.
-  `buC` legt `buH` in ein `doV` (Innenabstand 0, Hintergrund Grey 0/`aZJ.DYQ()`, linke Ecken rund `bNN.Anf`) -> kein Geschwister-Streifen,
-  der Hintergrund liegt unter `buH` und wird in den Lücken von unserer Box (Kind) übermalt.
+### Version 0.2.4-dev.1 (group tracks, menu order)
+- Groups: every arranger row of a group is a `buH` (header `buC`/`buL`, timeline `timeline.vak` with `pOC`, launcher `bcN`),
+  built in `buH.Gef(uVN,buK,aZJ)`. Content = the whole group block: header box (colour stripe `bDm.beI(...)` INSIDE if `buK.Gef()`)
+  above the fold-out container `dZi` with the child tracks (`aZJ.Iba()`). Set via `this.beI(dAc)` in two branches.
+  -> hooks `group-spacers` / `group-spacers-plain`: REPLACE_CALL on `buH.beI(LdAc;)V` calls 1 and 2 (the manifest counts after the mod's own
+  replacements -> both `occurrence 1`, correct according to the mod kit README). Group via `bDp.lN_()`. "Before" above the group header,
+  "After" after the end of the group (open: below the children, closed: right below the header). Header/timeline/launcher all `buH` -> lined up.
+  `buC` puts `buH` into a `doV` (padding 0, background Grey 0/`aZJ.DYQ()`, rounded left corners `bNN.Anf`) -> no sibling stripe,
+  the background lies under `buH` and is painted over in the gaps by our box (a child).
   6.1.4: buH=btu, Gef(uVN,buK,aZJ)=MRY.
-- Menü/Plan: Gruppen-Ausschluss entfernt (Actions `lanes`). Master-Spur einer Gruppe, Effektspuren, Projekt-Master bleiben ausgeschlossen
-  (nicht in `xDy()`). Duplizieren einer Gruppe: `collect` erfasst Gruppe + Kinder -> Tags aller Kopien entfernt (unverändert).
-- Menüreihenfolge: Framework sortiert nach Aktions-LABEL (`Registry.ORDER`, alphabetisch), zeigt aber `menuLabel`. Bei menuOnly erscheint
-  das Label nirgends -> Labels "Insert Spacer 1 Before Tracks" / "Insert Spacer 2 After Tracks", menuLabel = echte Texte. IDs unverändert.
-  Gilt für Framework 0.8.0-dev.1 (Bau) und 0.9.0-dev.4 (BML dev.17).
-- Prüfung: PaintProbe um Gruppen erweitert (aufgeklappt: After-Lücke nach Kopf+Kindern; eingeklappt: direkt nach dem Kopf; nur Lücken
-  in Grey 1 gemalt). Bau 6 Hooks, Rundreise OK, Namensprüfung 6.0–6.1.7 OK.
-- Unverifiziert in Bitwig: Gruppen-Aussehen (abgerundete Ecken/Rahmen von `buC` rund um die Lücke), Animation beim Auf-/Zuklappen,
-  verschachtelte Gruppen, Menüreihenfolge im echten Menü.
+- Menu/plan: group exclusion removed (actions `lanes`). A group's master track, effect tracks and the project master stay excluded
+  (not in `xDy()`). Duplicating a group: `collect` covers group + children -> tags of all copies removed (unchanged).
+- Menu order: the framework sorts by action LABEL (`Registry.ORDER`, alphabetically) but shows `menuLabel`. For menuOnly the
+  label appears nowhere -> labels "Insert Spacer 1 Before Tracks" / "Insert Spacer 2 After Tracks", menuLabel = real texts. IDs unchanged.
+  Applies to framework 0.8.0-dev.1 (build) and 0.9.0-dev.4 (BML dev.17).
+- Check: PaintProbe extended for groups (open: after-gap after header+children; closed: right after the header; only gaps
+  painted in Grey 1). Build 6 hooks, round trip OK, name check 6.0–6.1.7 OK.
+- Unverified in Bitwig: group look (rounded corners/frame of `buC` around the gap), animation when opening/closing,
+  nested groups, menu order in the real menu.
 
-### Version 0.2.5-dev.1 (Spacer außerhalb von Undo)
-- Wunsch: Einfügen/Entfernen ohne Undo-Eintrag, Undo/Redo anderer Schritte darf Spacer nie ändern.
-- Entscheidung: Tags bleiben im Kommentar (mit dem Projekt gespeichert, übersteht Speichern unter/Autosave, Duplizieren-Logik bleibt,
-  keine Migration). Externe Datei pro Projekt verworfen (Projekte ohne Pfad, Speichern unter, Verschieben, Pakete -> fragil).
-- Undo-Weg (Bitwig 6.1.7, gelesen): Undo `dgR.LYs()` -> `diF.scr()`, Redo `dgR.mEL()` -> `diF.Bqk()` (beide mit Flag `dgR.PJ3` privat).
-  Eintrag `dhd` -> `JDx.Gef(Object)` -> `dgs.sCA(ytz,String)` -> Meta-Interface `dge.sCA(IqI,int,String)` -> `kd.sCA(gEH,int,String)`
-  -> per Attribut-ID `gEH.PJ3(String)` (Kommentar) -> `gNZ` (einziger Feld-Schreiber). Außer `kd` ruft niemand `gEH.PJ3` von außen.
-  `dgO` (Laden des Verlaufs von Platte) nutzt `dgR.SQL()/af()` -> bewusst NICHT abgedeckt.
-- Umsetzung (4 neue Hooks):
-  - `spacer-tags-without-undo`: REPLACE_CALL in `dgT.aboutToChangeAttributeValue(dgs,ytz,String)` auf `dgR.beI(ytz)Z` (Bitwigs eigenes
-    „nicht aufzeichnen“) -> true für die Spuren in `runWithoutUndo` (nur dieser Thread). NICHT `dgs.dvk()` (das ersetzt track-height-lock;
-    zwei Mods auf demselben invokevirtual würden die Vorbereitung stoppen; Verketten geht nur bei INVOKESTATIC).
-  - `undo-marker`/`redo-marker`: REPLACE_CALL `diF.scr()` in `dgR.LYs()` bzw. `diF.Bqk()` in `dgR.mEL()` -> Thread-Zähler (try/finally).
-  - `undo-keeps-spacer-tags`: REPLACE_CALL `gEH.PJ3(String)` in `kd.sCA(gEH,int,String)`: während Undo/Redo
-    `SpacerRule.keepTags(neu, aktuell)` (Spacer-Tags des zurückgeschriebenen Werts durch die aktuellen ersetzt).
-  - Menü: `runWithoutUndo` statt Undo-Klammer, danach `CmH.nhI(true)` (is_modified). Kopie-Hook entfernt Tags ebenfalls ohne Undo.
-- Kollisionsprüfung gegen alle Mods in BML dev.17: nur track-height-lock in derselben dgT-Methode, anderer Aufruf -> ok.
-- Verfügbarkeit jetzt 6.1.2–6.1.7 (wie track-height-lock): `TzU.nhI(Z)` (6.1.4 `AJH.Z1C`) fehlt in 6.0/6.1/6.1.1.
-- Tests: `keepTags` + Simulation (Spacer still setzen, Kommentar-Edit, Undo/Undo/Redo/Redo -> Spacer bleibt; Remove + Undo bringt ihn nicht zurück).
-- Unverifiziert in Bitwig: dass Undo wirklich über `kd.sCA` läuft (aus dem Code abgeleitet), Undo-Verlaufsliste/Sprung im Verlauf,
-  Verhalten nach Neustart (Verlauf von Platte), Manuelles Ändern der Tags im Inspector ist weiter undo-fähig, aber Undo lässt die Tags stehen.
+### Version 0.2.5-dev.1 (spacers outside of undo)
+- Request: insert/remove without an undo entry, undo/redo of other steps must never change a spacer.
+- Decision: tags stay in the comment (saved with the project, survive Save As/autosave, duplicate logic stays,
+  no migration). An external file per project was rejected (projects without a path, Save As, moving, packages -> fragile).
+- Undo path (Bitwig 6.1.7, read): undo `dgR.LYs()` -> `diF.scr()`, redo `dgR.mEL()` -> `diF.Bqk()` (both with the private flag `dgR.PJ3`).
+  Entry `dhd` -> `JDx.Gef(Object)` -> `dgs.sCA(ytz,String)` -> meta interface `dge.sCA(IqI,int,String)` -> `kd.sCA(gEH,int,String)`
+  -> by attribute ID `gEH.PJ3(String)` (comment) -> `gNZ` (the only field writer). Apart from `kd`, nobody calls `gEH.PJ3` from outside.
+  `dgO` (loading the history from disk) uses `dgR.SQL()/af()` -> deliberately NOT covered.
+- Implementation (4 new hooks):
+  - `spacer-tags-without-undo`: REPLACE_CALL in `dgT.aboutToChangeAttributeValue(dgs,ytz,String)` on `dgR.beI(ytz)Z` (Bitwig's own
+    "don't record") -> true for the tracks in `runWithoutUndo` (this thread only). NOT `dgs.dvk()` (track-height-lock replaces that;
+    two mods on the same invokevirtual would stop preparation; chaining only works for INVOKESTATIC).
+  - `undo-marker`/`redo-marker`: REPLACE_CALL `diF.scr()` in `dgR.LYs()` and `diF.Bqk()` in `dgR.mEL()` -> thread counter (try/finally).
+  - `undo-keeps-spacer-tags`: REPLACE_CALL `gEH.PJ3(String)` in `kd.sCA(gEH,int,String)`: during undo/redo
+    `SpacerRule.keepTags(new, current)` (the spacer tags of the value written back are replaced by the current ones).
+  - Menu: `runWithoutUndo` instead of an undo bracket, then `CmH.nhI(true)` (is_modified). The copy hook also removes tags without undo.
+- Collision check against all mods in BML dev.17: only track-height-lock in the same dgT method, a different call -> ok.
+- Availability now 6.1.2–6.1.7 (like track-height-lock): `TzU.nhI(Z)` (6.1.4 `AJH.Z1C`) is missing in 6.0/6.1/6.1.1.
+- Tests: `keepTags` + simulation (set spacer silently, comment edit, undo/undo/redo/redo -> spacer stays; remove + undo doesn't bring it back).
+- Unverified in Bitwig: that undo really goes through `kd.sCA` (derived from the code), undo history list/jumping in the history,
+  behaviour after a restart (history from disk). Editing the tags by hand in the inspector is still undoable, but undo leaves the tags as they are.
 
-### Bau / Prüfung (0.2.0-dev.1)
-- `sh tools/build-mod.sh track-spacer`: modkit finish hooks=1 (Ziel gegen echtes 6.1.7-Jar geprüft), Remap 0 Warnungen,
-  Rundreise Code + Hooks OK, Namensprüfung verfügbar macOS 6.0, 6.1, 6.1.1, 6.1.2, 6.1.3, 6.1.4, 6.1.7.
-- Bytecode geprüft: Aufrufe sind die gewollten Überladungen.
-- `tools/make_uses.py` kennt keine F-Zeilen/Konstruktoren (für 0.2.0 nicht mehr relevant, nur Hinweis).
-- Offline-Check (`loader/prepare-mod.sh`) NICHT ausgeführt -> Nutzer-Schritt (prüft u. a. Bytecode-Verifikation des Hooks).
+### Build / checks (0.2.0-dev.1)
+- `sh tools/build-mod.sh track-spacer`: modkit finish hooks=1 (target checked against the real 6.1.7 jar), remap 0 warnings,
+  code + hook round trip OK, name check: available on macOS 6.0, 6.1, 6.1.1, 6.1.2, 6.1.3, 6.1.4, 6.1.7.
+- Bytecode checked: the calls are the intended overloads.
+- `tools/make_uses.py` doesn't know F rows/constructors (no longer relevant for 0.2.0, just a note).
+- Offline check (`loader/prepare-mod.sh`) NOT run -> user step (checks among other things the bytecode verification of the hook).
 
-### Stand
-- [x] Machbarkeit geprüft, Lücken-Variante gebaut, Logik-Tests grün.
-- [x] 0.2.1-dev.1: Kopien ohne Spacer, Lücke deckend in Hintergrundfarbe; gebaut (2 Hooks), Tests grün.
-- [x] 0.2.2-dev.1: Lücke wieder sichtbar (Halter-Box entfernt), Farbe über Zeilenbox, Ablauftest mit echten Bitwig-Klassen grün.
-- [x] 0.2.3-dev.1: Spurkopf-Lücke ohne Farbstreifen (Spacer um die ganze Kopfzeile), Mal-Test mit echten Klassen grün.
-- [x] 0.2.4-dev.1: Gruppenspuren (über Kopf / nach Gruppenende), Menü Before vor After; Proben + Tests grün.
-- [x] 0.2.5-dev.1: Spacer ohne Undo-Eintrag, Undo/Redo lässt Spacer unverändert; gebaut (10 Hooks), Tests grün.
-- [ ] Offline-Check (Rückfrage nötig).
-- [ ] Test in Bitwig (Patchbay > Mods > Add Mod… > `out/track-spacer`, Framework "Actions and Menus" mit aktivieren).
+### Status
+- [x] Feasibility checked, gap variant built, logic tests green.
+- [x] 0.2.1-dev.1: copies without spacers, gap opaque in the background colour; built (2 hooks), tests green.
+- [x] 0.2.2-dev.1: gap visible again (holder box removed), colour via the row box, flow test with Bitwig's real classes green.
+- [x] 0.2.3-dev.1: track header gap without colour stripe (spacers around the whole header), paint test with the real classes green.
+- [x] 0.2.4-dev.1: group tracks (above the header / after the end of the group), menu Before above After; probes + tests green.
+- [x] 0.2.5-dev.1: spacers without undo entry, undo/redo leaves spacers unchanged; built (10 hooks), tests green.
+- [ ] Offline check (needs asking).
+- [ ] Test in Bitwig (Patchbay > Mods > Add Mod… > `out/track-spacer`, enable Framework "Actions and Menus" too).
 
-### Offene Risiken (ungetestet in Bitwig)
-- Ob alle Arranger-Listen wirklich nur über `bvc` laufen (z. B. Gruppen-Zeilen, Effekt-/Master-Bereich) – v. a. Ausrichtung Kopf/Timeline prüfen.
-- Gruppen: keine Lücke über/unter dem Gruppenkopf (nur an Spuren darin). Ausbau: gleiches Muster an `buH` + Gruppen-Timeline-Zeile.
-- Klick/Drop in die Lücke: gehört zur `bvc`-Zeile der Spur (Verhalten ungeprüft).
-- Zusätzliche Box-Ebene in jeder Spurzeile (auch ohne Lücke): mögliche Nebenwirkungen auf Hintergrund/Hover/Drag.
-- Comment-Listener-Thread: angenommen UI-Thread (wie alle Dokument-Änderungen aus Menüs).
-- Lücken liegen im Kommentar (sichtbar im Inspector/Mixer-Kommentar).
+### Open risks (untested in Bitwig)
+- Whether all arranger lists really go only through `bvc`/`buH` (e.g. effect/master area) – check header/timeline alignment in particular.
+- Click/drop into the gap: belongs to the track's row (behaviour unchecked).
+- Extra box level in every track row (even without a gap): possible side effects on background/hover/drag.
+- Comment listener thread: assumed to be the UI thread (like all document changes from menus).
+- Gaps live in the comment (visible in the inspector/mixer comment).
