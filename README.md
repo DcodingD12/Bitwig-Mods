@@ -7,8 +7,9 @@ By Silent Orbit.
 |---|---|
 | [**Track Height Lock**](track-height-lock/README.md) | Lock the arranger height of chosen tracks so it can't be changed by accident. |
 | [**Track Spacer**](track-spacer/README.md) | Add an empty gap above or below tracks in the arranger, like REAPER's "Insert spacer before/after tracks". No extra track is created. |
+| [**Zoom Toggle**](zoom-toggle/README.md) | One key zooms to the selected clip in time and makes its track tall; press again to go back. |
 
-Both mods are **pre-releases** (`0.x-dev`): they work in daily use on Bitwig 6.1.7 (macOS), but expect rough edges.
+All mods are **pre-releases** (`0.x-dev`): they work in daily use on Bitwig 6.1.7 (macOS), but expect rough edges.
 Windows and Linux have not been checked.
 
 ## Requirements
@@ -16,12 +17,12 @@ Windows and Linux have not been checked.
 - Bitwig Studio **6.1.2 – 6.1.7** on **macOS** (built against 6.1.4, translated to other versions by BML's map packs).
 - Patch Bay with BML installed.
 - The mod **Framework: Actions and Menus** (`action-menu-composition-framework`) must be installed and enabled.
-  Both mods add their entries to the right-click menu through it.
+  The mods add their menu entries and shortcut actions through it.
 
 ## Installation
 
 1. Download the ZIP of the mod you want from the [Releases page](../../releases)
-   (`track-height-lock-….zip` and/or `track-spacer-….zip`). Don't unzip it.
+   (`track-height-lock-….zip`, `track-spacer-….zip` and/or `zoom-toggle-….zip`). Don't unzip it.
 2. Open **Patch Bay**, go to **Mods > Add Mod…** and choose the ZIP.
 3. Make sure **Framework: Actions and Menus** is enabled, and enable the mod.
 4. Start Bitwig through Patch Bay. If an older version of the mod is installed, remove it first.
@@ -65,6 +66,22 @@ Right-click a track in the arranger:
 
 Details: [track-spacer/README.md](track-spacer/README.md)
 
+## Zoom Toggle
+
+Adds the action **Zoom to Fit Selection (Toggle)**. It has no default key: in **Settings > Shortcuts** search for
+it and assign one (for example **Z**).
+
+- First press: zooms the time axis to the selection (Bitwig's own "Zoom to Fit Selection or Previous") and makes
+  the selected track tall.
+- Second press: zooms back and lowers the track again.
+
+- The track height uses a fixed number of steps (40), so the result is a prototype's guess, not an exact fit
+  to the window height.
+- Only tested on Bitwig 6.1.7 (macOS); it may not work on other versions yet.
+- Whether it also works in the clip editor has not been checked.
+
+Details: [zoom-toggle/README.md](zoom-toggle/README.md)
+
 ## Building from source
 
 Requirements: JDK 25, Python 3, Bitwig Studio and BML (see [NOTES.md](NOTES.md) for paths and background).
@@ -83,8 +100,8 @@ The mods call Bitwig-internal classes, so they are built against the Bitwig jar 
 ## Known limits
 
 - Prototype quality; only used on Bitwig 6.1.7 (macOS).
-- The menu entries are menu-only (no keyboard shortcut, not in the Commander).
-- Both mods use the track comment for their tags, so the tags show wherever Bitwig shows the comment.
+- The menu entries of Track Height Lock and Track Spacer are menu-only (no keyboard shortcut, not in the Commander). Zoom Toggle is a shortcut action.
+- Track Height Lock and Track Spacer use the track comment for their tags, so the tags show wherever Bitwig shows the comment.
 - Bitwig updates can change internal names; BML's map packs may need to catch up first.
 
 ## Disclaimer
