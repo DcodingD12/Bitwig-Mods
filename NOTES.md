@@ -166,6 +166,28 @@
 - Alle `bvc`-Zeilen solcher Spuren bekommen den Stapel, auch ohne Tag (damit Tags später live wirken).
 - 6.1.4-Namen: bvc=btR, Gef(YCD,bvi,aZJ)=MRY, beI(dAc)=cfM, dAc=dyC, YCD=iKU.
 
+### Version 0.2.1-dev.1 (nach Nutzertest in Bitwig)
+- Problem 1: Duplizieren übernahm `#spacer-before/-after` (Kommentar wird mitkopiert).
+  - Wege: Duplicate -> `CmH.sCA(List,Z)` -> `GJy.beI(List,int,Z,PPR,Eoh)` -> Clipboard-Op (`gHg`-Unterklassen
+    `IdK`/`WCT`/`qHV`/`Cux`...) -> pro Spur `GJy.beI(sJU,int)`. Copy & Paste gleich. Verschieben (`CyJ`/`M1M`) über `unz(PiT,int)`,
+    Gruppieren/Umhängen (`PJ3(List)`, privates `beI(GJy,sJU,int)`) ruft aber AUCH `GJy.beI(sJU,int)` – mit denselben Objekten,
+    teils kurz abgehängt -> „keine Eltern“ taugt nicht als Kopie-Test.
+  - Lösung: Hook `copies-without-spacers` = ENTRY auf `GJy.beI(Lcom/bitwig/flt/document/core/master/sJU;I)V` (6.1.4 `ruS.cfM`).
+    Merkliste `SEEN` (WeakHashMap): beim ersten Zeilenaufbau bzw. ersten Einfügen pro Projekt alle Spuren des Projekts
+    (`sJU.TUb()` = Wurzelgruppe, rekursiv `xDy()`) als gesehen markieren. Eingefügte Spur (bei Gruppen auch alle Spuren darin),
+    die nie gesehen wurde = Kopie -> `SpacerRule.withoutAll` per `Heb(String)`, danach als gesehen markieren.
+    Läuft VOR dem Einfügen (Kopie noch nicht im Projekt) -> kein eigener Undo-Schritt.
+  - Annahme: Undo/Redo und Laden fügen Listen auf Attribut-Ebene ein (nicht über `GJy.beI(sJU,int)`); ungeprüft in Bitwig.
+  - Auch Spuren aus anderen Projekten/Presets (neu im Projekt) verlieren die Tags – gewollt.
+- Problem 2: Lücke zeigte links den blauen Streifen (und ggf. Auswahlfarbe), weil die Zeile (`bvc`/`bvV`, Eigenschaft
+  `background_color` = `dxu.jZa()`, an „ausgewählt“ gebunden) über ihre ganze Höhe malt und `dZl` durchsichtig ist.
+  - Lösung: jeder Abstandshalter steckt in einer eigenen `dXL`-Box mit Hintergrund `row.mum().SQL()` (Theme „Grey 1“, wie
+    Arranger-Panel `aZD` und Standard-Zeilenhintergrund `bvi.beI(egM)`), gesetzt per `dXM.beI(ekS)` (öffentlich).
+    Kinder malen über den Eltern-Hintergrund.
+  - Äußere Box `byf(0)`: `dXL` hat Standard-Abstand 2 px zwischen Nicht-Spacer-Kindern (`dXM.LYs`), sonst bekäme jede Spur +4 px.
+  - Ungeprüft: ob der Streifen vom Eltern-Hintergrund kommt (dann abgedeckt) oder als Overlay nach den Kindern gemalt wird
+    (dann bliebe er sichtbar); ob „Grey 1“ exakt dem sichtbaren Arranger-Schwarz entspricht; ob eine leere `dXL` ohne Padding 0 px hoch ist.
+
 ### Bau / Prüfung (0.2.0-dev.1)
 - `sh tools/build-mod.sh track-spacer`: modkit finish hooks=1 (Ziel gegen echtes 6.1.7-Jar geprüft), Remap 0 Warnungen,
   Rundreise Code + Hooks OK, Namensprüfung verfügbar macOS 6.0, 6.1, 6.1.1, 6.1.2, 6.1.3, 6.1.4, 6.1.7.
@@ -175,6 +197,7 @@
 
 ### Stand
 - [x] Machbarkeit geprüft, Lücken-Variante gebaut, Logik-Tests grün.
+- [x] 0.2.1-dev.1: Kopien ohne Spacer, Lücke deckend in Hintergrundfarbe; gebaut (2 Hooks), Tests grün.
 - [ ] Offline-Check (Rückfrage nötig).
 - [ ] Test in Bitwig (Patchbay > Mods > Add Mod… > `out/track-spacer`, Framework "Actions and Menus" mit aktivieren).
 

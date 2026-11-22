@@ -38,6 +38,9 @@ public final class SpacerTest {
         same("remove keeps after", SpacerRule.withoutBefore("#spacer-before #spacer-after"), "#spacer-after");
         same("remove sized", SpacerRule.withoutAfter("a #spacer-after=20 b"), "a b");
         same("remove null", SpacerRule.withoutAfter(null), "");
+        same("remove all", SpacerRule.withoutAll("Bass #spacer-before=20 note #spacer-after"), "Bass note");
+        same("remove all keeps other tags", SpacerRule.withoutAll("#lock #spacer-after"), "#lock");
+        same("remove all, nothing there", SpacerRule.withoutAll("Bass"), "Bass");
         same("remove nothing", SpacerRule.withoutAfter("  spaced  "), "  spaced  ");
         for (String c : new String[] {"", "Bass", "two  spaces", "line1\nline2", "#lock"}) {
             same("round trip before [" + c + "]", SpacerRule.withoutBefore(SpacerRule.withBefore(c)), c);

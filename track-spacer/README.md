@@ -19,6 +19,10 @@ With several selected tracks, each block of tracks that sit next to each other g
 Every menu choice is one step in Edit > Undo.
 
 The gap shows in the track headers, the timeline and the clip launcher column of the arranger, so they stay lined up.
+It is painted in the arranger's background colour (no track colour, no selection colour).
+
+A copy of a track (Duplicate, Copy & Paste) does not get the gap: its spacer tags are removed, the rest of
+its comment stays. Moving or grouping a track keeps its gap.
 
 ## Where the gap is stored
 

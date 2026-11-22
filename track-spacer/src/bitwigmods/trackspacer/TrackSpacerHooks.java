@@ -7,9 +7,13 @@ import bitwig.obf.dAc;  // something a widget can hold as its content
 import bitwig.obf.dXL;  // a box that stacks widgets (here: top to bottom)
 import bitwig.obf.dZl;  // an empty spacer widget inside such a box (min/max size)
 import bitwig.obf.dwF;  // a widget
+import bitwig.obf.egG;  // a theme colour
+import bitwig.obf.ekS;  // what a box takes as its background
+import bml.api.Arg;
 import bml.api.At;
 import bml.api.Bml;
 import bml.api.Hook;
+import bml.api.This;
 import com.bitwig.flt.document.core.master.GJy; // a group track (also the project's top level)
 import com.bitwig.flt.document.core.master.sJU; // a track (channel)
 
@@ -54,10 +58,16 @@ public final class TrackSpacerHooks {
         try {
             sJU track = trackWithSpacers(row.lIt()); // lIt: the track this row shows
             if (track != null && content instanceof dwF widget) {
+                seeProject(track);
+                // The row itself paints over its whole height (selection colour, colour strip), so each
+                // gap gets a box of its own, filled with the arranger's background ("Grey 1",
+                // as Bitwig's arranger panel and rows use). Children paint over their parent.
+                egG background = row.mum().SQL(); // mum: the row's theme colours
                 dXL box = dXL.sSO();          // a box that stacks top to bottom (as bvc's own)
-                dZl above = box.sCA(0L);      // a fixed spacer, 0 px for now
+                box.byf(0);                   // no extra space between its widgets (default would be 2)
+                dZl above = filledSpacer(box, background);
                 box.IvP(widget);              // Bitwig's row content
-                dZl below = box.sCA(0L);
+                dZl below = filledSpacer(box, background);
                 register(track, above, below);
                 result = box;
             }
@@ -69,6 +79,86 @@ public final class TrackSpacerHooks {
             }
         }
         row.beI(result); // what Bitwig does normally
+    }
+
+    // GJy.beI(sJU, int): puts a track into a group's track list. Duplicating, copy & paste (and also
+    // adding new tracks, grouping and moving) go through here. A copy is a NEW object that was never
+    // part of the project; tracks that are moved or grouped are the same objects as before.
+    // So: tracks we have never seen in the project lose their spacer tags here, before they are
+    // inserted (no undo step of its own; the copy is not in the project yet).
+    @Hook(id = "copies-without-spacers", target = GJy.class,
+            method = "beI(Lcom/bitwig/flt/document/core/master/sJU;I)V", at = At.ENTRY)
+    public static void beforeInsertTrack(@This GJy group, @Arg(0) sJU inserted) {
+        try {
+            if (inserted == null) {
+                return;
+            }
+            sJU anyTrackInProject = group;
+            seeProject(anyTrackInProject); // tracks that were already there count as seen
+            List<sJU> tracks = new ArrayList<>();
+            collect(inserted, tracks); // the track, or a group with all tracks inside
+            synchronized (SEEN) {
+                for (sJU track : tracks) {
+                    if (!SEEN.containsKey(track)) {
+                        String comment = track.wze(); // wze: comment
+                        if (SpacerRule.hasAny(comment)) {
+                            track.Heb(SpacerRule.withoutAll(comment)); // Bitwig's comment setter
+                        }
+                    }
+                    SEEN.put(track, Boolean.TRUE); // from now on it is part of the project
+                }
+            }
+        } catch (Throwable t) {
+            if (!loggedProblem) {
+                loggedProblem = true;
+                MOD.log("could not check a new track for spacer tags", t);
+            }
+        }
+    }
+
+    /** Tracks that have been part of a project (held weakly). A track not in here is a fresh copy. */
+    private static final Map<sJU, Boolean> SEEN = new WeakHashMap<>();
+    /** Projects whose tracks were all marked as seen once (via their top-level group). */
+    private static final Map<GJy, Boolean> SEEN_PROJECTS = new WeakHashMap<>();
+
+    /** Marks every track of the project as seen, once per project (first row or first insert). */
+    private static void seeProject(sJU anyTrack) {
+        GJy root = anyTrack.TUb(); // TUb: the project's top-level group
+        if (root == null) {
+            return;
+        }
+        synchronized (SEEN) {
+            if (SEEN_PROJECTS.containsKey(root)) {
+                return;
+            }
+            SEEN_PROJECTS.put(root, Boolean.TRUE);
+            List<sJU> all = new ArrayList<>();
+            collect(root, all);
+            for (sJU track : all) {
+                SEEN.put(track, Boolean.TRUE);
+            }
+        }
+    }
+
+    /** The track itself and, for a group, every track inside (all levels). */
+    private static void collect(sJU track, List<sJU> out) {
+        out.add(track);
+        if (track instanceof GJy group) {
+            for (Object child : group.xDy()) { // the group's tracks, top to bottom
+                if (child instanceof sJU childTrack) {
+                    collect(childTrack, out);
+                }
+            }
+        }
+    }
+
+    /** Adds a box filled with the background colour to the column, holding one spacer (0 px for now). */
+    private static dZl filledSpacer(dXL column, egG background) {
+        dXL holder = dXL.sSO();
+        holder.beI((ekS) background); // background_color of the box: opaque
+        dZl spacer = holder.sCA(0L);  // its only child; the box is as high as the spacer
+        column.IvP(holder);
+        return spacer;
     }
 
     /**

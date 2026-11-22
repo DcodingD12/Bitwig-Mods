@@ -58,6 +58,11 @@ public final class SpacerRule {
         return without(comment, AFTER);
     }
 
+    /** The comment without any spacer tag (before and after), the rest unchanged. */
+    public static String withoutAll(String comment) {
+        return withoutAfter(withoutBefore(comment));
+    }
+
     private static int gap(String comment, Pattern pattern) {
         if (comment == null) {
             return 0;
