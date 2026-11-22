@@ -7,7 +7,7 @@
 - Bauen: `sh tools/build-mod.sh <mod-ordner>` -> `out/<mod-id>/` (helper.jar, mod.json, README.md).
   Das Compile-Jar `build/bitwig-compile.jar` entsteht beim ersten Bau (nie teilen/committen).
 - Tests: `python3 -m unittest discover -s tools` (Manifest-Skript, translate_hooks), `sh tools/test-java.sh track-height-lock` (Sperr-Regel),
-  `sh tools/test-java.sh track-spacer` (Spacer-Tags + Plan + Kopie-Regel), `sh tools/probe-layout.sh` (Layout mit echten Bitwig-Klassen).
+  `sh tools/test-java.sh track-spacer` (Spacer-Tags + Plan + Kopie-Regel), `sh tools/probe-layout.sh` (Layout + Malen mit echten Bitwig-Klassen).
 - Offline-Check (`loader/prepare-mod.sh`) überschreibt `loader/mod-runtime` im BML-Ordner -> nur nach Rückfrage.
 
 ## Mod: track-height-lock (Spurhöhe sperren)
@@ -207,6 +207,25 @@
   0.2.1 mit denselben Hook-Zielen wurde aber in der echten BML-dev.17-Installation vorbereitet und verifiziert.
 - Ungetestet in Bitwig: Malen der Lückenfarbe (Probe prüft nur Layout), ob der blaue Streifen dadurch verdeckt wird, Kopie-Hook in der Praxis.
 
+### Version 0.2.3-dev.1 (Lücke im Spurkopf war noch blau)
+- Nutzertest 0.2.2: Lücke da, Duplizieren ok, aber im Spurkopf blauer Streifen links durch die Lücke.
+- Ursache (belegt, `buT.sCA(YCD,GRp,aZJ)`): der Spurkopf ist eine NEBENEINANDER-Box `dXL.fpX()` (Abstand 1, Hintergrund `egM.zzi()`)
+  mit [Farb-/Auswahl-Widget `beI(zCn,Pv selected,Pv,Pv,buQ)`, bvc-Zeile]. Der Streifen ist ein GESCHWISTER der bvc-Zeile und so hoch
+  wie sie -> eine Lücke in der bvc lässt ihn daneben stehen. Aus der bvc heraus nicht abdeckbar.
+  Andere Ansichten: Launcher-Slots (`bcS.sCA`) und Launcher-Steuerung (`bgE.beI`) geben die bvc direkt zurück, Timeline (`nSh.sCA`)
+  setzt die bvc als Inhalt und färbt sich selbst (`nEh.cCV()`) -> dort deckt die Box der bvc (Kind) den Eltern-Hintergrund ab.
+  `buT` erbt auch von `bvV` (background_color an "ausgewählt") -> wird in den Lücken ebenfalls von unserer Box (Kind) überdeckt.
+- Fix: Im Spurkopf keine Spacer in der bvc (ThreadLocal `IN_HEADER` um den bvc-Aufbau), stattdessen Box [Spacer, ganze Kopf-Box, Spacer]
+  um den Inhalt des Spurkopfs. Hooks: REPLACE_CALL in `buT.sCA(LYCD;LGRp;LaZJ;)V` auf `bvc.beI(LYCD;Lbvi;LaZJ;)Lbvc;`
+  (`header-row-without-spacers`) und auf `buT.beI(LdAc;)V` (`header-spacers`). 6.1.4: buT=btI, sCA(YCD,GRp,aZJ)=Hnt.
+- Farbe: `mum().zzi()` = Theme "Grey 1" (Standard Grauwert 26 = #1A1A1A, in `egM` per `beI("Grey 1", 26)` definiert) – dieselbe Farbe,
+  die Bitwig zwischen den Spuren malt (Spurkopf-Box `buT`, Timeline-Spurliste `timeline.mFm`). Als egG-Objekt übergeben -> Theme-Mods greifen.
+- Verifiziert mit echten Bitwig-Klassen (`sh tools/probe-layout.sh`): `PaintProbe` baut die Box wie der Hook, layoutet und malt sie in ein
+  protokollierendes Grafik-Objekt (Proxy auf `com.bitwig.graphics.ijY`): gemalt werden genau die Lücken-Rechtecke über die volle Breite in
+  RGB 0.102/0.102/0.102, nichts unter dem Inhalt. `LayoutProbe`: Höhen live korrekt.
+- Unverifiziert: Malreihenfolge im echten Fenster (Eltern vor Kindern angenommen, Standard), mögliche Overlays nach den Kindern
+  (z. B. „Muted by Audition“ in `bDp`), echtes Bild in Bitwig.
+
 ### Bau / Prüfung (0.2.0-dev.1)
 - `sh tools/build-mod.sh track-spacer`: modkit finish hooks=1 (Ziel gegen echtes 6.1.7-Jar geprüft), Remap 0 Warnungen,
   Rundreise Code + Hooks OK, Namensprüfung verfügbar macOS 6.0, 6.1, 6.1.1, 6.1.2, 6.1.3, 6.1.4, 6.1.7.
@@ -218,6 +237,7 @@
 - [x] Machbarkeit geprüft, Lücken-Variante gebaut, Logik-Tests grün.
 - [x] 0.2.1-dev.1: Kopien ohne Spacer, Lücke deckend in Hintergrundfarbe; gebaut (2 Hooks), Tests grün.
 - [x] 0.2.2-dev.1: Lücke wieder sichtbar (Halter-Box entfernt), Farbe über Zeilenbox, Ablauftest mit echten Bitwig-Klassen grün.
+- [x] 0.2.3-dev.1: Spurkopf-Lücke ohne Farbstreifen (Spacer um die ganze Kopfzeile), Mal-Test mit echten Klassen grün.
 - [ ] Offline-Check (Rückfrage nötig).
 - [ ] Test in Bitwig (Patchbay > Mods > Add Mod… > `out/track-spacer`, Framework "Actions and Menus" mit aktivieren).
 

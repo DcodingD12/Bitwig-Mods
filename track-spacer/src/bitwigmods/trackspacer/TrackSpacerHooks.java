@@ -2,6 +2,9 @@ package bitwigmods.trackspacer;
 
 import bitwig.obf.NVD;  // Bitwig's listener: eventOccurred(Object)
 import bitwig.obf.YCD;  // a (non-group) track, as the UI sees it
+import bitwig.obf.aZJ;  // the arranger panel a row belongs to
+import bitwig.obf.buT;  // a track header in the arranger: [colour strip, bvc row] side by side
+import bitwig.obf.bvi;  // which kind of row a bvc is (header, timeline, launcher ...)
 import bitwig.obf.bvc;  // one arranger row of a track (header, timeline lane, launcher slots, launcher controls)
 import bitwig.obf.dAc;  // something a widget can hold as its content
 import bitwig.obf.dXL;  // a box that stacks widgets (here: top to bottom)
@@ -54,33 +57,72 @@ public final class TrackSpacerHooks {
             at = At.REPLACE_CALL, callOwner = bvc.class, call = "beI(LdAc;)V", occurrence = 1)
     public static void setRowContent(bvc row, dAc content) {
         dAc result = content;
+        if (!Boolean.TRUE.equals(IN_HEADER.get())) { // header rows get their spacers around the whole header
+            result = withSpacers(row.lIt(), content, row); // lIt: the track this row shows
+        }
+        row.beI(result); // what Bitwig does normally
+    }
+
+    // The track header (buT.sCA(YCD, GRp, aZJ)) is a side-by-side box: [colour strip + selection, bvc row].
+    // The strip is a sibling of the row and as high as the row, so gaps inside the row would show the
+    // strip. Here the header's bvc gets NO spacers (IN_HEADER) ...
+    private static final ThreadLocal<Boolean> IN_HEADER = new ThreadLocal<>();
+    private static final ThreadLocal<YCD> HEADER_TRACK = new ThreadLocal<>();
+
+    @Hook(id = "header-row-without-spacers", target = buT.class, method = "sCA(LYCD;LGRp;LaZJ;)V",
+            at = At.REPLACE_CALL, callOwner = bvc.class, call = "beI(LYCD;Lbvi;LaZJ;)Lbvc;", occurrence = 1)
+    public static bvc buildHeaderRow(YCD track, bvi kind, aZJ panel) {
+        IN_HEADER.set(Boolean.TRUE);
         try {
-            sJU track = trackWithSpacers(row.lIt()); // lIt: the track this row shows
-            if (track != null && content instanceof dwF widget) {
-                seeProject(track);
-                dXL box = dXL.sSO();          // a box that stacks top to bottom (as bvc's own)
-                // The spacers MUST be direct children of this box: a box only lays out children
-                // that are spacers or have a size > 0 in both directions (dXU.kwH), and a box
-                // holding nothing but a spacer is 0 wide -> it would be dropped (bug in 0.2.1).
-                dZl above = box.sCA(0L);      // a fixed spacer, 0 px for now
-                box.IvP(widget);              // Bitwig's row content
-                dZl below = box.sCA(0L);
-                // The box's background colour is painted only over its spacers and the gaps between
-                // its children, never under the content (dXL.beI(ijY, SZB)). So the gaps are opaque
-                // in the arranger background ("Grey 1", as Bitwig's arranger panel and rows use) and
-                // hide the row's own colour (selection, colour strip) there.
-                box.beI((ekS) row.mum().SQL()); // mum: the row's theme colours
-                register(track, above, below);
-                result = box;
+            return bvc.beI(track, kind, panel); // what Bitwig does normally
+        } finally {
+            IN_HEADER.remove();
+            HEADER_TRACK.set(track); // for setHeaderContent, a few lines later in the same method
+        }
+    }
+
+    // ... and the header's whole content (strip + row) gets the spacers around it instead.
+    @Hook(id = "header-spacers", target = buT.class, method = "sCA(LYCD;LGRp;LaZJ;)V",
+            at = At.REPLACE_CALL, callOwner = buT.class, call = "beI(LdAc;)V", occurrence = 1)
+    public static void setHeaderContent(buT header, dAc content) {
+        YCD track = HEADER_TRACK.get();
+        HEADER_TRACK.remove();
+        header.beI(withSpacers(track, content, header)); // what Bitwig does normally, wrapped
+    }
+
+    /**
+     * The content in a top-to-bottom box [spacer, content, spacer], or the content unchanged if the
+     * track gets no spacers (or anything is odd: never break Bitwig).
+     */
+    private static dAc withSpacers(YCD shown, dAc content, dwF themeOwner) {
+        try {
+            sJU track = trackWithSpacers(shown);
+            if (track == null || !(content instanceof dwF widget)) {
+                return content;
             }
+            seeProject(track);
+            dXL box = dXL.sSO();          // a box that stacks top to bottom (as bvc's own)
+            // The spacers MUST be direct children of this box: a box only lays out children
+            // that are spacers or have a size > 0 in both directions (dXU.kwH), and a box
+            // holding nothing but a spacer is 0 wide -> it would be dropped (bug in 0.2.1).
+            dZl above = box.sCA(0L);      // a fixed spacer, 0 px for now
+            box.IvP(widget);              // Bitwig's content
+            dZl below = box.sCA(0L);
+            // The box's background colour is painted only over its spacers and the gaps between
+            // its children, never under the content (dXL.beI(ijY, SZB)). Its parent (the row or
+            // header, painting the selection colour) paints first, so the gaps show this colour:
+            // zzi = theme "Grey 1", the colour Bitwig paints between tracks (header box in buT,
+            // timeline track list mFm).
+            box.beI((ekS) themeOwner.mum().zzi()); // mum: the widget's theme colours
+            register(track, above, below);
+            return box;
         } catch (Throwable t) {
-            result = content; // never break Bitwig: show the row as usual
             if (!loggedProblem) {
                 loggedProblem = true;
                 MOD.log("could not add spacers to a track row, rows are shown as usual", t);
             }
+            return content;
         }
-        row.beI(result); // what Bitwig does normally
     }
 
     // GJy.beI(sJU, int): puts a track into a group's track list. Duplicating, copy & paste (and also

@@ -1,5 +1,6 @@
 #!/bin/sh
-# Flow test of track-spacer's row box with Bitwig's real widget classes (read only, no UI, nothing is changed).
+# Flow tests of track-spacer's row box with Bitwig's real widget classes (read only, no UI, nothing is changed):
+# LayoutProbe (gap heights, live) and PaintProbe (which rectangles get painted in which colour).
 #
 #   sh tools/probe-layout.sh
 set -eu
@@ -14,3 +15,6 @@ esac
 rm -rf "$OUT"; mkdir -p "$OUT"
 "$JDK/bin/javac" --release 21 -d "$OUT" "$ROOT/track-spacer/probe/LayoutProbe.java"
 "$JAVA" -cp "$OUT:$BW/Java/bitwig.jar:$BW/Java/libs.jar" LayoutProbe
+# PaintProbe is compiled against bitwig.jar (default package, Bitwig 6.1.7 names).
+"$JDK/bin/javac" --release 21 -cp "$BW/Java/bitwig.jar:$BW/Java/libs.jar" -d "$OUT" "$ROOT/track-spacer/probe/PaintProbe.java"
+"$JAVA" -cp "$OUT:$BW/Java/bitwig.jar:$BW/Java/libs.jar" PaintProbe
