@@ -19,14 +19,7 @@ public final class PaintProbe {
     private static int failures = 0;
 
     public static void main(String[] args) throws Exception {
-        dXL content = new dXL() { // stand-in for a header/row content of 100 x 40
-            @Override protected ijY nj_() { return new ijY(100, 40); }
-            @Override protected ijY iI_() { return new ijY(100, 40); }
-            @Override protected ijY mL_() { return new ijY(100, 40); }
-            @Override protected ijY iH_() { return new ijY(100, 40); }
-        };
-        call(content, dXL.class, "MgQ", new Class<?>[] {mLC.class}, mLC.beI);
-        call(content, dwF.class, "H_", new Class<?>[0]);
+        dXL content = fixed(100, 40); // stand-in for a track header/row content of 100 x 40
 
         // Exactly what TrackSpacerHooks.withSpacers builds:
         dXL box = dXL.sSO();
@@ -52,11 +45,59 @@ public final class PaintProbe {
             System.out.println("FAIL: painted " + painted + ", expected " + expected);
         }
 
+        // Group track (buH): the content is the whole group block, header on top of the fold-out
+        // container with the group's tracks. "after" must come below the END of the group.
+        groupCase("open group", 60, List.of("colour 0.102,0.102,0.102",
+                "rect 0,0,100,16", "fill",     // before: above the group header
+                "rect 0,106,100,8", "fill"));  // after: below header (30) + tracks (60)
+        groupCase("closed group", 0, List.of("colour 0.102,0.102,0.102",
+                "rect 0,0,100,16", "fill",
+                "rect 0,46,100,8", "fill"));   // closed: right below the header
+
         if (failures > 0) {
             System.out.println("PAINT_PROBE_FAILED " + failures);
             System.exit(1);
         }
         System.out.println("PAINT_PROBE_OK");
+    }
+
+    /** A group block [header 100x30, tracks 100 x tracksHeight] wrapped like the hook does, laid out and painted. */
+    private static void groupCase(String what, long tracksHeight, List<String> expected) throws Exception {
+        dXL block = dXL.sSO();
+        block.byf(0); // stand-in block without inner spacing, so the expected numbers are exact
+        block.IvP(fixed(100, 30));
+        if (tracksHeight > 0) {
+            block.IvP(fixed(100, tracksHeight)); // a closed group's container is 0 high (left out)
+        }
+        dXL box = dXL.sSO();
+        dZl above = box.sCA(0L);
+        box.IvP(block);
+        dZl below = box.sCA(0L);
+        box.beI((ekS) egM.BBg().zzi());
+        resize(above, 16);
+        resize(below, 8);
+        long h = 16 + 30 + tracksHeight + 8;
+        box.beI(0L, 0L, 100L, h);
+        call(box, dXL.class, "iK_", new Class<?>[0]);
+        call(block, dXL.class, "iK_", new Class<?>[0]);
+        List<String> painted = paint(box, 100, h);
+        if (!painted.equals(expected)) {
+            failures++;
+            System.out.println("FAIL: " + what + ": painted " + painted + ", expected " + expected);
+        }
+    }
+
+    /** A widget of a fixed size (a box that reports this size), standing in for Bitwig's content. */
+    private static dXL fixed(long w, long h) throws Exception {
+        dXL widget = new dXL() {
+            @Override protected ijY nj_() { return new ijY(w, h); }
+            @Override protected ijY iI_() { return new ijY(w, h); }
+            @Override protected ijY mL_() { return new ijY(w, h); }
+            @Override protected ijY iH_() { return new ijY(w, h); }
+        };
+        call(widget, dXL.class, "MgQ", new Class<?>[] {mLC.class}, mLC.beI);
+        call(widget, dwF.class, "H_", new Class<?>[0]);
+        return widget;
     }
 
     private static void resize(dZl spacer, long px) {

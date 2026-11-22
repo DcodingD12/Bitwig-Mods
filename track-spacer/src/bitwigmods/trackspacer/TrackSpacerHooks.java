@@ -3,6 +3,7 @@ package bitwigmods.trackspacer;
 import bitwig.obf.NVD;  // Bitwig's listener: eventOccurred(Object)
 import bitwig.obf.YCD;  // a (non-group) track, as the UI sees it
 import bitwig.obf.aZJ;  // the arranger panel a row belongs to
+import bitwig.obf.buH;  // one arranger row of a group track (header, timeline, launcher): header + its tracks
 import bitwig.obf.buT;  // a track header in the arranger: [colour strip, bvc row] side by side
 import bitwig.obf.bvi;  // which kind of row a bvc is (header, timeline, launcher ...)
 import bitwig.obf.bvc;  // one arranger row of a track (header, timeline lane, launcher slots, launcher controls)
@@ -90,11 +91,29 @@ public final class TrackSpacerHooks {
         header.beI(withSpacers(track, content, header)); // what Bitwig does normally, wrapped
     }
 
+    // Group tracks: every arranger row of a group (header, timeline, launcher) is a buH, built in
+    // buH.Gef(uVN, buK, aZJ). Its content is the whole group block: the group's header (with its colour
+    // strip inside) and, below it, the fold-out container with the group's tracks. It is set with
+    // this.beI(dAc) in one of two branches (with or without the strip). Wrapping that block puts
+    // "before" above the group header and "after" below the end of the group (below its tracks
+    // when the group is open, right below the header when it is closed).
+    @Hook(id = "group-spacers", target = buH.class, method = "Gef(Lcom/bitwig/flt/document/core/iface/uVN;LbuK;LaZJ;)V",
+            at = At.REPLACE_CALL, callOwner = buH.class, call = "beI(LdAc;)V", occurrence = 1)
+    public static void setGroupContent(buH row, dAc content) {
+        row.beI(withSpacers(row.lN_(), content, row)); // lN_: the group this row shows
+    }
+
+    @Hook(id = "group-spacers-plain", target = buH.class, method = "Gef(Lcom/bitwig/flt/document/core/iface/uVN;LbuK;LaZJ;)V",
+            at = At.REPLACE_CALL, callOwner = buH.class, call = "beI(LdAc;)V", occurrence = 2)
+    public static void setPlainGroupContent(buH row, dAc content) {
+        row.beI(withSpacers(row.lN_(), content, row));
+    }
+
     /**
      * The content in a top-to-bottom box [spacer, content, spacer], or the content unchanged if the
      * track gets no spacers (or anything is odd: never break Bitwig).
      */
-    private static dAc withSpacers(YCD shown, dAc content, dwF themeOwner) {
+    private static dAc withSpacers(Object shown, dAc content, dwF themeOwner) {
         try {
             sJU track = trackWithSpacers(shown);
             if (track == null || !(content instanceof dwF widget)) {
@@ -203,10 +222,11 @@ public final class TrackSpacerHooks {
     }
 
     /**
-     * The track if its rows may get spacers: a normal track in a group's (or the top level's) track list.
-     * Not a group's own master track (its header is built elsewhere, rows would no longer line up).
+     * The track if its rows may get spacers: a track or group track in a group's (or the top level's)
+     * track list. Not a group's own master track, effect tracks or the project's master track
+     * (they are not in that list).
      */
-    private static sJU trackWithSpacers(YCD shown) {
+    private static sJU trackWithSpacers(Object shown) {
         if (!(shown instanceof sJU track)) {
             return null;
         }

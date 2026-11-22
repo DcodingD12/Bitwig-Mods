@@ -226,6 +226,26 @@
 - Unverifiziert: Malreihenfolge im echten Fenster (Eltern vor Kindern angenommen, Standard), mögliche Overlays nach den Kindern
   (z. B. „Muted by Audition“ in `bDp`), echtes Bild in Bitwig.
 
+### Version 0.2.4-dev.1 (Gruppenspuren, Menüreihenfolge)
+- Gruppen: jede Arranger-Zeile einer Gruppe ist ein `buH` (Kopf `buC`/`buL`, Timeline `timeline.vak` mit `pOC`, Launcher `bcN`),
+  gebaut in `buH.Gef(uVN,buK,aZJ)`. Inhalt = ganzer Gruppenblock: Kopf-Box (Farbstreifen `bDm.beI(...)` INNEN, wenn `buK.Gef()`)
+  über dem aufklappbaren Container `dZi` mit den Kind-Spuren (`aZJ.Iba()`). Gesetzt per `this.beI(dAc)` in zwei Zweigen.
+  -> Hooks `group-spacers` / `group-spacers-plain`: REPLACE_CALL auf `buH.beI(LdAc;)V` Aufruf 1 und 2 (Manifest zählt nach eigenen
+  Ersetzungen -> beide `occurrence 1`, laut Modkit-README korrekt). Gruppe über `bDp.lN_()`. "Before" über dem Gruppenkopf,
+  "After" nach dem Gruppenende (aufgeklappt unter den Kindern, eingeklappt direkt unter dem Kopf). Kopf/Timeline/Launcher alle `buH` -> bündig.
+  `buC` legt `buH` in ein `doV` (Innenabstand 0, Hintergrund Grey 0/`aZJ.DYQ()`, linke Ecken rund `bNN.Anf`) -> kein Geschwister-Streifen,
+  der Hintergrund liegt unter `buH` und wird in den Lücken von unserer Box (Kind) übermalt.
+  6.1.4: buH=btu, Gef(uVN,buK,aZJ)=MRY.
+- Menü/Plan: Gruppen-Ausschluss entfernt (Actions `lanes`). Master-Spur einer Gruppe, Effektspuren, Projekt-Master bleiben ausgeschlossen
+  (nicht in `xDy()`). Duplizieren einer Gruppe: `collect` erfasst Gruppe + Kinder -> Tags aller Kopien entfernt (unverändert).
+- Menüreihenfolge: Framework sortiert nach Aktions-LABEL (`Registry.ORDER`, alphabetisch), zeigt aber `menuLabel`. Bei menuOnly erscheint
+  das Label nirgends -> Labels "Insert Spacer 1 Before Tracks" / "Insert Spacer 2 After Tracks", menuLabel = echte Texte. IDs unverändert.
+  Gilt für Framework 0.8.0-dev.1 (Bau) und 0.9.0-dev.4 (BML dev.17).
+- Prüfung: PaintProbe um Gruppen erweitert (aufgeklappt: After-Lücke nach Kopf+Kindern; eingeklappt: direkt nach dem Kopf; nur Lücken
+  in Grey 1 gemalt). Bau 6 Hooks, Rundreise OK, Namensprüfung 6.0–6.1.7 OK.
+- Unverifiziert in Bitwig: Gruppen-Aussehen (abgerundete Ecken/Rahmen von `buC` rund um die Lücke), Animation beim Auf-/Zuklappen,
+  verschachtelte Gruppen, Menüreihenfolge im echten Menü.
+
 ### Bau / Prüfung (0.2.0-dev.1)
 - `sh tools/build-mod.sh track-spacer`: modkit finish hooks=1 (Ziel gegen echtes 6.1.7-Jar geprüft), Remap 0 Warnungen,
   Rundreise Code + Hooks OK, Namensprüfung verfügbar macOS 6.0, 6.1, 6.1.1, 6.1.2, 6.1.3, 6.1.4, 6.1.7.
@@ -238,6 +258,7 @@
 - [x] 0.2.1-dev.1: Kopien ohne Spacer, Lücke deckend in Hintergrundfarbe; gebaut (2 Hooks), Tests grün.
 - [x] 0.2.2-dev.1: Lücke wieder sichtbar (Halter-Box entfernt), Farbe über Zeilenbox, Ablauftest mit echten Bitwig-Klassen grün.
 - [x] 0.2.3-dev.1: Spurkopf-Lücke ohne Farbstreifen (Spacer um die ganze Kopfzeile), Mal-Test mit echten Klassen grün.
+- [x] 0.2.4-dev.1: Gruppenspuren (über Kopf / nach Gruppenende), Menü Before vor After; Proben + Tests grün.
 - [ ] Offline-Check (Rückfrage nötig).
 - [ ] Test in Bitwig (Patchbay > Mods > Add Mod… > `out/track-spacer`, Framework "Actions and Menus" mit aktivieren).
 

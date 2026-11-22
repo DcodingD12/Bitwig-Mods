@@ -31,12 +31,17 @@ public final class TrackSpacerActions implements ActionProvider {
 
     @Override
     public void declare(Actions actions) {
-        actions.action("track_spacer_insert_before", "Insert Spacer Before Tracks")
+        // The framework sorts a mod's menu rows by their action LABEL (alphabetically) but shows the
+        // MENU label. For menu-only actions the action label is shown nowhere else, so it is used here
+        // only to put "Before" above "After" ("... 1 ..." < "... 2 ..."); the menu shows the real text.
+        actions.action("track_spacer_insert_before", "Insert Spacer 1 Before Tracks")
+               .menuLabel("Insert Spacer Before Tracks")
                .in(Menu.selection("track"))
                .menuOnly()
                .visibleWhen(context -> !plans(tracks(context), SpacerPlan.Side.BEFORE).isEmpty())
                .onRun(context -> insert(tracks(context), SpacerPlan.Side.BEFORE));
-        actions.action("track_spacer_insert_after", "Insert Spacer After Tracks")
+        actions.action("track_spacer_insert_after", "Insert Spacer 2 After Tracks")
+               .menuLabel("Insert Spacer After Tracks")
                .in(Menu.selection("track"))
                .menuOnly()
                .visibleWhen(context -> !plans(tracks(context), SpacerPlan.Side.AFTER).isEmpty())
@@ -69,17 +74,14 @@ public final class TrackSpacerActions implements ActionProvider {
     }
 
     /**
-     * The track lists holding the selected tracks. Group tracks themselves are left out:
-     * their header row is built elsewhere and gets no gap (their tracks inside do).
+     * The track lists holding the selected tracks and group tracks (a group's gap goes above its header
+     * or below the end of the group). Effect tracks and master tracks are not in these lists.
      */
     private static List<Lane> lanes(List<sJU> selectedTracks) {
         Set<sJU> selected = Collections.newSetFromMap(new IdentityHashMap<>());
         selected.addAll(selectedTracks);
         Map<GJy, Lane> lanes = new LinkedHashMap<>();
         for (sJU track : selectedTracks) {
-            if (track instanceof GJy) {
-                continue;
-            }
             GJy group = track.QJW(); // the group (or the project's top level) holding the track
             if (group == null || lanes.containsKey(group)) {
                 continue;
@@ -99,7 +101,7 @@ public final class TrackSpacerActions implements ActionProvider {
             boolean[] after = new boolean[n];
             for (int i = 0; i < n; i++) {
                 sJU t = order.get(i);
-                isSelected[i] = selected.contains(t) && !(t instanceof GJy);
+                isSelected[i] = selected.contains(t);
                 before[i] = SpacerRule.gapBefore(t.wze()) > 0; // wze: comment
                 after[i] = SpacerRule.gapAfter(t.wze()) > 0;
             }

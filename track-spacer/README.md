@@ -14,6 +14,9 @@ Right-click a track (its header in the arranger):
 - **Insert Spacer After Tracks** adds a gap below the selected tracks.
 - **Remove Spacer** removes every gap that touches the selected tracks (above or below them).
 
+Group tracks work too: "before" puts the gap above the group's header, "after" below the end of the
+group (below its tracks when the group is open, right below the header when it is closed).
+
 With several selected tracks, each block of tracks that sit next to each other gets one gap
 (above its first or below its last track). If there already is a gap at that spot, no second one is added.
 Every menu choice is one step in Edit > Undo.
@@ -50,8 +53,6 @@ The mod has not been tried in Bitwig yet.
 
 ## Known limits (prototype)
 
-- Group tracks: no gap above or below a group's own header row (tracks inside groups work).
-  Group tracks in the selection are skipped.
 - Effect tracks and the master track get no gaps.
 - The tags are part of the comment, so they show wherever Bitwig shows the comment.
 - The menu entries are menu-only (no shortcut, not in the Commander).
