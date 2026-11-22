@@ -4,7 +4,7 @@
     "id": "track-spacer",
     "name": "Arranger: Track Spacer",
     "area": "Arranger",
-    "version": "0.2.4-dev.1",
+    "version": "0.2.5-dev.1",
     "author": "Silent Orbit",
     "description": "Adds an empty gap of N pixels above or below tracks in the arranger, like REAPER's track spacers - no extra track. Right-click a track: 'Insert Spacer Before Tracks' / 'Insert Spacer After Tracks' / 'Remove Spacer'. The gap is stored as #spacer-before / #spacer-after in the track comment (optional size, e.g. #spacer-before=24). Undoable. Needs Framework: Actions and Menus.",
     "documentation": "readme"

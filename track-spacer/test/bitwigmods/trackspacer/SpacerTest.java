@@ -71,6 +71,39 @@ public final class SpacerTest {
         same("leave other side of neighbour", clear(on(5, 2), on(5, 1), on(5, 3)), List.of());
         same("nothing to clear", clear(on(5, 2), no, no), List.of());
 
+        // SpacerRule.keepTags: Undo/Redo keeps the spacer tags as they are now
+        same("undo to older comment keeps tag", SpacerRule.keepTags("old note", "new note #spacer-before"), "old note #spacer-before");
+        same("undo cannot bring back a removed tag", SpacerRule.keepTags("note #spacer-after", "note"), "note");
+        same("undo keeps the size", SpacerRule.keepTags("x #spacer-before", "y #spacer-before=24"), "x #spacer-before=24");
+        same("both tags kept", SpacerRule.keepTags("", "#spacer-before #spacer-after=8"), "#spacer-before #spacer-after=8");
+        same("nothing to keep", SpacerRule.keepTags("a", "b"), "a");
+        same("null incoming", SpacerRule.keepTags(null, "#spacer-after"), "#spacer-after");
+
+        // Simulation: Bitwig's undo history for one track's comment, with the mod's rules.
+        //   1. user types a comment (recorded: "" -> "Bass")
+        //   2. menu inserts a spacer (NOT recorded): "Bass #spacer-before"
+        //   3. user edits the comment (recorded: "Bass #spacer-before" -> "Bass long #spacer-before")
+        //   then Undo, Undo, Redo, Redo: the spacer must stay all the time.
+        java.util.List<String[]> history = new java.util.ArrayList<>(); // recorded steps: {old, new}
+        String comment = "";
+        history.add(new String[] {comment, "Bass"});
+        comment = "Bass";
+        comment = SpacerRule.withBefore(comment);                     // step 2: silent, no history entry
+        history.add(new String[] {comment, "Bass long #spacer-before"});
+        comment = "Bass long #spacer-before";
+        comment = SpacerRule.keepTags(history.get(1)[0], comment);    // undo step 3
+        same("sim undo 1", comment, "Bass #spacer-before");
+        comment = SpacerRule.keepTags(history.get(0)[0], comment);    // undo step 1 (old comment had no tag)
+        same("sim undo 2 keeps spacer", comment, "#spacer-before");
+        comment = SpacerRule.keepTags(history.get(0)[1], comment);    // redo step 1
+        same("sim redo 1", comment, "Bass #spacer-before");
+        comment = SpacerRule.keepTags(history.get(1)[1], comment);    // redo step 3
+        same("sim redo 2", comment, "Bass long #spacer-before");
+        comment = SpacerRule.withoutAll(comment);                     // menu: Remove Spacer (silent)
+        comment = SpacerRule.keepTags(history.get(1)[0], comment);    // undo step 3 again: old value had the tag
+        same("sim undo after remove does not bring it back", comment, "Bass");
+        check("sim: gap follows", SpacerRule.gapBefore(comment) == 0);
+
         // CopyRule: only fresh copies in a shown project lose their tags
         check("copy loses tags", CopyRule.removeTags(true, false, "#spacer-before"));
         check("moved/grouped track keeps tags", !CopyRule.removeTags(true, true, "#spacer-before"));

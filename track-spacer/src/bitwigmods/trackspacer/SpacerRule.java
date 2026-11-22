@@ -63,6 +63,32 @@ public final class SpacerRule {
         return withoutAfter(withoutBefore(comment));
     }
 
+    /**
+     * The comment {@code incoming} (e.g. an older comment written back by Undo) with its spacer tags
+     * replaced by the ones {@code current} has now (same text, e.g. "#spacer-before=24"). So Undo/Redo
+     * never adds, removes or changes a spacer; the rest of the comment is what Undo wants.
+     */
+    public static String keepTags(String incoming, String current) {
+        String result = withoutAll(incoming);
+        String before = firstMatch(current, BEFORE);
+        String after = firstMatch(current, AFTER);
+        if (before != null) {
+            result = append(result, before);
+        }
+        if (after != null) {
+            result = append(result, after);
+        }
+        return result;
+    }
+
+    private static String firstMatch(String text, Pattern pattern) {
+        if (text == null) {
+            return null;
+        }
+        Matcher m = pattern.matcher(text);
+        return m.find() ? m.group() : null;
+    }
+
     private static int gap(String comment, Pattern pattern) {
         if (comment == null) {
             return 0;

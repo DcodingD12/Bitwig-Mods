@@ -246,6 +246,28 @@
 - Unverifiziert in Bitwig: Gruppen-Aussehen (abgerundete Ecken/Rahmen von `buC` rund um die Lücke), Animation beim Auf-/Zuklappen,
   verschachtelte Gruppen, Menüreihenfolge im echten Menü.
 
+### Version 0.2.5-dev.1 (Spacer außerhalb von Undo)
+- Wunsch: Einfügen/Entfernen ohne Undo-Eintrag, Undo/Redo anderer Schritte darf Spacer nie ändern.
+- Entscheidung: Tags bleiben im Kommentar (mit dem Projekt gespeichert, übersteht Speichern unter/Autosave, Duplizieren-Logik bleibt,
+  keine Migration). Externe Datei pro Projekt verworfen (Projekte ohne Pfad, Speichern unter, Verschieben, Pakete -> fragil).
+- Undo-Weg (Bitwig 6.1.7, gelesen): Undo `dgR.LYs()` -> `diF.scr()`, Redo `dgR.mEL()` -> `diF.Bqk()` (beide mit Flag `dgR.PJ3` privat).
+  Eintrag `dhd` -> `JDx.Gef(Object)` -> `dgs.sCA(ytz,String)` -> Meta-Interface `dge.sCA(IqI,int,String)` -> `kd.sCA(gEH,int,String)`
+  -> per Attribut-ID `gEH.PJ3(String)` (Kommentar) -> `gNZ` (einziger Feld-Schreiber). Außer `kd` ruft niemand `gEH.PJ3` von außen.
+  `dgO` (Laden des Verlaufs von Platte) nutzt `dgR.SQL()/af()` -> bewusst NICHT abgedeckt.
+- Umsetzung (4 neue Hooks):
+  - `spacer-tags-without-undo`: REPLACE_CALL in `dgT.aboutToChangeAttributeValue(dgs,ytz,String)` auf `dgR.beI(ytz)Z` (Bitwigs eigenes
+    „nicht aufzeichnen“) -> true für die Spuren in `runWithoutUndo` (nur dieser Thread). NICHT `dgs.dvk()` (das ersetzt track-height-lock;
+    zwei Mods auf demselben invokevirtual würden die Vorbereitung stoppen; Verketten geht nur bei INVOKESTATIC).
+  - `undo-marker`/`redo-marker`: REPLACE_CALL `diF.scr()` in `dgR.LYs()` bzw. `diF.Bqk()` in `dgR.mEL()` -> Thread-Zähler (try/finally).
+  - `undo-keeps-spacer-tags`: REPLACE_CALL `gEH.PJ3(String)` in `kd.sCA(gEH,int,String)`: während Undo/Redo
+    `SpacerRule.keepTags(neu, aktuell)` (Spacer-Tags des zurückgeschriebenen Werts durch die aktuellen ersetzt).
+  - Menü: `runWithoutUndo` statt Undo-Klammer, danach `CmH.nhI(true)` (is_modified). Kopie-Hook entfernt Tags ebenfalls ohne Undo.
+- Kollisionsprüfung gegen alle Mods in BML dev.17: nur track-height-lock in derselben dgT-Methode, anderer Aufruf -> ok.
+- Verfügbarkeit jetzt 6.1.2–6.1.7 (wie track-height-lock): `TzU.nhI(Z)` (6.1.4 `AJH.Z1C`) fehlt in 6.0/6.1/6.1.1.
+- Tests: `keepTags` + Simulation (Spacer still setzen, Kommentar-Edit, Undo/Undo/Redo/Redo -> Spacer bleibt; Remove + Undo bringt ihn nicht zurück).
+- Unverifiziert in Bitwig: dass Undo wirklich über `kd.sCA` läuft (aus dem Code abgeleitet), Undo-Verlaufsliste/Sprung im Verlauf,
+  Verhalten nach Neustart (Verlauf von Platte), Manuelles Ändern der Tags im Inspector ist weiter undo-fähig, aber Undo lässt die Tags stehen.
+
 ### Bau / Prüfung (0.2.0-dev.1)
 - `sh tools/build-mod.sh track-spacer`: modkit finish hooks=1 (Ziel gegen echtes 6.1.7-Jar geprüft), Remap 0 Warnungen,
   Rundreise Code + Hooks OK, Namensprüfung verfügbar macOS 6.0, 6.1, 6.1.1, 6.1.2, 6.1.3, 6.1.4, 6.1.7.
@@ -259,6 +281,7 @@
 - [x] 0.2.2-dev.1: Lücke wieder sichtbar (Halter-Box entfernt), Farbe über Zeilenbox, Ablauftest mit echten Bitwig-Klassen grün.
 - [x] 0.2.3-dev.1: Spurkopf-Lücke ohne Farbstreifen (Spacer um die ganze Kopfzeile), Mal-Test mit echten Klassen grün.
 - [x] 0.2.4-dev.1: Gruppenspuren (über Kopf / nach Gruppenende), Menü Before vor After; Proben + Tests grün.
+- [x] 0.2.5-dev.1: Spacer ohne Undo-Eintrag, Undo/Redo lässt Spacer unverändert; gebaut (10 Hooks), Tests grün.
 - [ ] Offline-Check (Rückfrage nötig).
 - [ ] Test in Bitwig (Patchbay > Mods > Add Mod… > `out/track-spacer`, Framework "Actions and Menus" mit aktivieren).
 

@@ -19,7 +19,9 @@ group (below its tracks when the group is open, right below the header when it i
 
 With several selected tracks, each block of tracks that sit next to each other gets one gap
 (above its first or below its last track). If there already is a gap at that spot, no second one is added.
-Every menu choice is one step in Edit > Undo.
+Spacers are **not part of Undo**: inserting or removing one adds no entry to Edit > Undo, and Cmd+Z / Redo of
+other changes never adds, removes or changes a spacer. A spacer only changes through the menu (or by editing the
+tag in the comment yourself). The project is marked as changed, so save it (Cmd+S) to keep the spacer.
 
 The gap shows in the track headers, the timeline and the clip launcher column of the arranger, so they stay lined up.
 It is painted in the arranger's background colour (no track colour, no selection colour).
@@ -45,8 +47,9 @@ Checked offline against the map packs in BML 0.36.0-dev.13 (names only):
 
 | Bitwig (macOS) | Available |
 |---|---|
-| 6.0, 6.1, 6.1.1, 6.1.2, 6.1.3, 6.1.7 | yes |
+| 6.1.2, 6.1.3, 6.1.7 | yes |
 | 6.1.4 | yes (the reference build) |
+| 6.0, 6.1, 6.1.1 | no: one name (marking the project as changed) has no counterpart there |
 
 Windows and Linux were not checked (no map packs for them in this BML install).
 The mod has not been tried in Bitwig yet.

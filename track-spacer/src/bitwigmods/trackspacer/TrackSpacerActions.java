@@ -151,31 +151,27 @@ public final class TrackSpacerActions implements ActionProvider {
         apply(clears(selectedTracks), "Remove Spacer");
     }
 
-    /** Writes the new comments in one undo step; the comment listener in TrackSpacerHooks redraws the gaps. */
-    private static void apply(Map<sJU, String> changes, String undoName) {
+    /**
+     * Writes the new comments WITHOUT an undo entry (Cmd+Z never adds or removes a spacer; only this menu
+     * does). The project is marked as changed, so Bitwig asks to save it. The comment listener in
+     * TrackSpacerHooks redraws the gaps.
+     */
+    private static void apply(Map<sJU, String> changes, String what) {
         if (changes.isEmpty()) {
             return;
         }
-        CmH project = changes.keySet().iterator().next().cc_();
-        boolean open = false;
         try {
-            project.beI(undoName, false); // open one undo step
-            open = true;
-            for (Map.Entry<sJU, String> change : changes.entrySet()) {
-                change.getKey().Heb(change.getValue()); // Bitwig's comment setter
-            }
-            project.beI(false); // close the undo step
-            open = false;
-        } catch (Throwable failure) {
-            MOD.log("could not change the spacer tags", failure);
-            if (open) {
-                try {
-                    project.beI(false);
-                    project.cov(); // undo what was done
-                } catch (Throwable ignored) {
-                    // already logged
+            TrackSpacerHooks.runWithoutUndo(changes.keySet(), () -> {
+                for (Map.Entry<sJU, String> change : changes.entrySet()) {
+                    change.getKey().Heb(change.getValue()); // Bitwig's comment setter
                 }
+            });
+            CmH project = changes.keySet().iterator().next().cc_();
+            if (project != null) {
+                project.nhI(true); // "is_modified" (not undoable itself): Bitwig asks to save
             }
+        } catch (Throwable failure) {
+            MOD.log("could not change the spacer tags (" + what + ")", failure);
         }
         for (sJU track : changes.keySet()) {
             TrackSpacerHooks.refresh(track); // in case Bitwig's comment event didn't reach us

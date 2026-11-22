@@ -3,6 +3,16 @@ package bitwigmods.trackspacer;
 import bitwig.obf.NVD;  // Bitwig's listener: eventOccurred(Object)
 import bitwig.obf.YCD;  // a (non-group) track, as the UI sees it
 import bitwig.obf.aZJ;  // the arranger panel a row belongs to
+import bitwig.obf.dgR;  // a project's undo history
+import bitwig.obf.dgT;  // the undo recorder's observer (records attribute changes)
+import bitwig.obf.diF;  // the undo steps (applies undo/redo)
+import com.bitwig.flt.document.core.master.gEH; // a channel (comment setter PJ3)
+import com.bitwig.flt.document.core.master.kd;  // meta class of channels (generic setters, used by undo/redo)
+import com.bitwig.ramona.core.ytz;              // a document object
+import java.util.Collection;
+import java.util.Collections;
+import java.util.IdentityHashMap;
+import java.util.Set;
 import bitwig.obf.buH;  // one arranger row of a group track (header, timeline, launcher): header + its tracks
 import bitwig.obf.buT;  // a track header in the arranger: [colour strip, bvc row] side by side
 import bitwig.obf.bvi;  // which kind of row a bvc is (header, timeline, launcher ...)
@@ -91,6 +101,93 @@ public final class TrackSpacerHooks {
         header.beI(withSpacers(track, content, header)); // what Bitwig does normally, wrapped
     }
 
+    // ---- Spacer tags outside of Undo ------------------------------------------------------------
+    // 1. The menu (and the copy check) change the tags without an undo entry: while runWithoutUndo
+    //    runs, Bitwig's undo recorder is told "don't record this object" for exactly these tracks.
+    //    dgT.aboutToChangeAttributeValue(dgs, ytz, String) asks dgR.beI(ytz) first; true = not recorded
+    //    (Bitwig's own path). Not dgs.dvk() there: track-height-lock replaces that call.
+    // 2. Undo/Redo of other steps write older comments back through the meta setter kd.sCA(gEH,int,String)
+    //    -> gEH.PJ3(String). While Undo/Redo runs, the spacer tags in that value are replaced by the
+    //    track's current ones, so Undo/Redo never adds, removes or changes a spacer.
+
+    private static volatile Thread silentThread = null;
+    private static final Set<Object> SILENT = Collections.newSetFromMap(new IdentityHashMap<>());
+    private static final ThreadLocal<int[]> UNDO_DEPTH = ThreadLocal.withInitial(() -> new int[1]);
+
+    /** Runs the changes with these tracks left out of Undo (only these, only on this thread). */
+    static void runWithoutUndo(Collection<? extends sJU> tracks, Runnable changes) {
+        synchronized (SILENT) {
+            SILENT.clear();
+            SILENT.addAll(tracks);
+        }
+        silentThread = Thread.currentThread();
+        try {
+            changes.run();
+        } finally {
+            silentThread = null;
+            synchronized (SILENT) {
+                SILENT.clear();
+            }
+        }
+    }
+
+    @Hook(id = "spacer-tags-without-undo", target = dgT.class,
+            method = "aboutToChangeAttributeValue(Ldgs;Lcom/bitwig/ramona/core/ytz;Ljava/lang/String;)V",
+            at = At.REPLACE_CALL, callOwner = dgR.class, call = "beI(Lcom/bitwig/ramona/core/ytz;)Z", occurrence = 1)
+    public static boolean notRecorded(dgR recorder, ytz object) {
+        // Fast path: runs for every text change in Bitwig, normally just Bitwig's answer.
+        if (silentThread == Thread.currentThread()) {
+            synchronized (SILENT) {
+                if (SILENT.contains(object)) {
+                    return true; // our spacer tags: no undo entry
+                }
+            }
+        }
+        return recorder.beI(object);
+    }
+
+    // dgR.LYs() = Undo, dgR.mEL() = Redo; diF.scr() / diF.Bqk() apply the history step.
+    @Hook(id = "undo-marker", target = dgR.class, method = "LYs()V",
+            at = At.REPLACE_CALL, callOwner = diF.class, call = "scr()V", occurrence = 1)
+    public static void undo(diF history) {
+        UNDO_DEPTH.get()[0]++;
+        try {
+            history.scr();
+        } finally {
+            UNDO_DEPTH.get()[0]--;
+        }
+    }
+
+    @Hook(id = "redo-marker", target = dgR.class, method = "mEL()V",
+            at = At.REPLACE_CALL, callOwner = diF.class, call = "Bqk()V", occurrence = 1)
+    public static void redo(diF history) {
+        UNDO_DEPTH.get()[0]++;
+        try {
+            history.Bqk();
+        } finally {
+            UNDO_DEPTH.get()[0]--;
+        }
+    }
+
+    @Hook(id = "undo-keeps-spacer-tags", target = kd.class,
+            method = "sCA(Lcom/bitwig/flt/document/core/master/gEH;ILjava/lang/String;)V",
+            at = At.REPLACE_CALL, callOwner = gEH.class, call = "PJ3(Ljava/lang/String;)V", occurrence = 1)
+    public static void setComment(gEH channel, String comment) {
+        String value = comment;
+        try {
+            if (UNDO_DEPTH.get()[0] > 0 && channel instanceof sJU track) {
+                value = SpacerRule.keepTags(comment, track.wze()); // wze: the comment now
+            }
+        } catch (Throwable t) {
+            value = comment;
+            if (!loggedProblem) {
+                loggedProblem = true;
+                MOD.log("could not keep the spacer tags during undo/redo", t);
+            }
+        }
+        channel.PJ3(value); // what Bitwig does normally (writes the comment)
+    }
+
     // Group tracks: every arranger row of a group (header, timeline, launcher) is a buH, built in
     // buH.Gef(uVN, buK, aZJ). Its content is the whole group block: the group's header (with its colour
     // strip inside) and, below it, the fold-out container with the group's tracks. It is set with
@@ -172,7 +269,8 @@ public final class TrackSpacerHooks {
                 for (sJU track : tracks) {
                     String comment = track.wze(); // wze: comment
                     if (CopyRule.removeTags(true, SEEN.containsKey(track), comment)) {
-                        track.Heb(SpacerRule.withoutAll(comment)); // Bitwig's comment setter
+                        String clean = SpacerRule.withoutAll(comment);
+                        runWithoutUndo(List.of(track), () -> track.Heb(clean)); // Bitwig's comment setter, no undo entry
                     }
                     SEEN.put(track, Boolean.TRUE); // from now on it is part of the project
                 }
