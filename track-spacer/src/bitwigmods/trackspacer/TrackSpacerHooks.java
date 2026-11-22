@@ -1,0 +1,156 @@
+package bitwigmods.trackspacer;
+
+import bitwig.obf.NVD;  // Bitwig's listener: eventOccurred(Object)
+import bitwig.obf.YCD;  // a (non-group) track, as the UI sees it
+import bitwig.obf.bvc;  // one arranger row of a track (header, timeline lane, launcher slots, launcher controls)
+import bitwig.obf.dAc;  // something a widget can hold as its content
+import bitwig.obf.dXL;  // a box that stacks widgets (here: top to bottom)
+import bitwig.obf.dZl;  // an empty spacer widget inside such a box (min/max size)
+import bitwig.obf.dwF;  // a widget
+import bml.api.At;
+import bml.api.Bml;
+import bml.api.Hook;
+import com.bitwig.flt.document.core.master.GJy; // a group track (also the project's top level)
+import com.bitwig.flt.document.core.master.sJU; // a track (channel)
+
+import java.lang.ref.WeakReference;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.WeakHashMap;
+
+/**
+ * Arranger: Track Spacer. A gap of N pixels above and/or below a track, without an extra track.
+ *
+ * Every arranger row of a track is a bvc: the track header, the timeline lane, the clip launcher
+ * slots and launcher controls in the arranger. bvc.Gef(YCD, bvi, aZJ) builds the row and, as its
+ * last step, sets the row's content (bvc.beI(dAc)). This mod replaces that one call: the content
+ * is put into a box [spacer, content, spacer]. The spacers are 0 px unless the track's comment
+ * has "#spacer-before" / "#spacer-after". Because every row of the track gets the same spacers,
+ * header, timeline and launcher stay lined up. (Rows stack by their widget sizes; the only reader
+ * of the track height for layout is bvc itself.)
+ *
+ * A listener on the track's comment resizes the spacers whenever the comment changes
+ * (menu, typing in the inspector, undo/redo).
+ *
+ * Names are Bitwig 6.1.7 (macOS).
+ */
+public final class TrackSpacerHooks {
+    private static final Bml.Mod MOD = Bml.mod("track-spacer");
+    private static volatile boolean loggedProblem = false;
+
+    /** Per track: its rows' spacers ([0] above, [1] below), held weakly so closed rows can go. */
+    private static final Map<sJU, List<WeakReference<dZl>[]>> ROWS = new WeakHashMap<>();
+
+    private TrackSpacerHooks() {
+    }
+
+    // bvc.Gef(YCD, bvi, aZJ): builds a track's arranger row; its last call, this.beI(dAc), sets the row's content.
+    @Hook(id = "track-row-spacers", target = bvc.class, method = "Gef(LYCD;Lbvi;LaZJ;)V",
+            at = At.REPLACE_CALL, callOwner = bvc.class, call = "beI(LdAc;)V", occurrence = 1)
+    public static void setRowContent(bvc row, dAc content) {
+        dAc result = content;
+        try {
+            sJU track = trackWithSpacers(row.lIt()); // lIt: the track this row shows
+            if (track != null && content instanceof dwF widget) {
+                dXL box = dXL.sSO();          // a box that stacks top to bottom (as bvc's own)
+                dZl above = box.sCA(0L);      // a fixed spacer, 0 px for now
+                box.IvP(widget);              // Bitwig's row content
+                dZl below = box.sCA(0L);
+                register(track, above, below);
+                result = box;
+            }
+        } catch (Throwable t) {
+            result = content; // never break Bitwig: show the row as usual
+            if (!loggedProblem) {
+                loggedProblem = true;
+                MOD.log("could not add spacers to a track row, rows are shown as usual", t);
+            }
+        }
+        row.beI(result); // what Bitwig does normally
+    }
+
+    /**
+     * The track if its rows may get spacers: a normal track in a group's (or the top level's) track list.
+     * Not a group's own master track (its header is built elsewhere, rows would no longer line up).
+     */
+    private static sJU trackWithSpacers(YCD shown) {
+        if (!(shown instanceof sJU track)) {
+            return null;
+        }
+        GJy group = track.QJW(); // the group holding it
+        if (group == null || group.smz() == track) { // smz: the group's own master track
+            return null;
+        }
+        return group.xDy().contains(track) ? track : null; // xDy: the group's tracks, top to bottom
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void register(sJU track, dZl above, dZl below) {
+        List<WeakReference<dZl>[]> rows;
+        synchronized (ROWS) {
+            rows = ROWS.get(track);
+            if (rows == null) {
+                rows = new ArrayList<>();
+                ROWS.put(track, rows);
+                listenToComment(track);
+            }
+            rows.add(new WeakReference[] {new WeakReference<>(above), new WeakReference<>(below)});
+        }
+        String comment = track.wze();
+        resize(above, SpacerRule.gapBefore(comment));
+        resize(below, SpacerRule.gapAfter(comment));
+    }
+
+    /** One listener per track on its comment (Bitwig's own change event, also on undo/redo). */
+    private static void listenToComment(sJU track) {
+        WeakReference<sJU> ref = new WeakReference<>(track);
+        track.GKF().addListener(new NVD() { // GKF: the track's comment as a value
+            @Override
+            public void eventOccurred(Object event) {
+                sJU t = ref.get();
+                if (t != null) {
+                    refresh(t);
+                }
+            }
+        });
+    }
+
+    /** Sets every row's spacers of this track to the sizes in its comment now. */
+    static void refresh(sJU track) {
+        try {
+            String comment = track.wze();
+            int before = SpacerRule.gapBefore(comment);
+            int after = SpacerRule.gapAfter(comment);
+            synchronized (ROWS) {
+                List<WeakReference<dZl>[]> rows = ROWS.get(track);
+                if (rows == null) {
+                    return;
+                }
+                for (Iterator<WeakReference<dZl>[]> it = rows.iterator(); it.hasNext(); ) {
+                    WeakReference<dZl>[] pair = it.next();
+                    dZl above = pair[0].get();
+                    dZl below = pair[1].get();
+                    if (above == null || below == null) {
+                        it.remove(); // the row is gone
+                        continue;
+                    }
+                    resize(above, before);
+                    resize(below, after);
+                }
+            }
+        } catch (Throwable t) {
+            if (!loggedProblem) {
+                loggedProblem = true;
+                MOD.log("could not resize the track spacers", t);
+            }
+        }
+    }
+
+    private static void resize(dZl spacer, int pixels) {
+        long size = pixels;
+        spacer.sCA(size); // smallest size (raises the largest if needed)
+        spacer.MgQ(size); // largest size: fixed now
+    }
+}

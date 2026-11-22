@@ -6,7 +6,8 @@
 - JDK 25: `/opt/homebrew/opt/openjdk@25` (nur in den Skripten benutzt, keine Shell-Konfiguration geändert).
 - Bauen: `sh tools/build-mod.sh <mod-ordner>` -> `out/<mod-id>/` (helper.jar, mod.json, README.md).
   Das Compile-Jar `build/bitwig-compile.jar` entsteht beim ersten Bau (nie teilen/committen).
-- Tests: `python3 -m unittest discover -s tools` (Manifest-Skript, translate_hooks), `sh tools/test-java.sh track-height-lock` (Sperr-Regel).
+- Tests: `python3 -m unittest discover -s tools` (Manifest-Skript, translate_hooks), `sh tools/test-java.sh track-height-lock` (Sperr-Regel),
+  `sh tools/test-java.sh track-spacer` (Spacer-Tags + Plan).
 - Offline-Check (`loader/prepare-mod.sh`) überschreibt `loader/mod-runtime` im BML-Ordner -> nur nach Rückfrage.
 
 ## Mod: track-height-lock (Spurhöhe sperren)
@@ -124,3 +125,63 @@
 3. Schloss-Symbol: vom Nutzer nicht gewünscht.
 4. Option "alle Spuren sperren" über BML-Settings (`MOD.settings()`), Automations-Lanes mit sperren.
 5. Gegen 6.1.4-Namen bauen, damit es auf allen Versionen läuft.
+
+## Mod: track-spacer (Gegenstück zu REAPER "Insert spacer before/after tracks")
+
+### Entscheidung (0.2.0-dev.1): reiner Abstand, KEINE Zusatzspur
+- 0.1.0-dev.1 (leere Audiospur als Spacer) vom Nutzer abgelehnt -> komplett ersetzt.
+- Jetzt: leere Lücke von N px über/unter einer Spur im Arranger (Spurkopf, Timeline, Launcher-Spalte im Arranger).
+- Speicher: Tags im Spurkommentar `#spacer-before` / `#spacer-after`, optional `=N` (Standard 16 px, 1..400).
+  Wird mit dem Projekt gespeichert; Menüaktionen sind je ein Undo-Schritt.
+- Menü (menuOnly, `Menu.selection("track")`): "Insert Spacer Before Tracks" (erste Spur jedes Blocks bekommt
+  `#spacer-before`), "Insert Spacer After Tracks" (letzte Spur bekommt `#spacer-after`), "Remove Spacer"
+  (entfernt jede Lücke, die eine gewählte Spur berührt: eigene Tags, `after` der Spur darüber, `before` der Spur darunter).
+  Schon vorhandene Lücke an der Stelle (Tag einer der beiden Nachbarn) -> nichts doppelt. Logik in `SpacerPlan`/`SpacerRule` (getestet).
+
+### Erkenntnisse Layout (Bitwig 6.1.7, nur gelesen)
+- Jede Arranger-Zeile einer (Nicht-Gruppen-)Spur ist ein `bvc` (extends `bvg` -> `bDw` ... -> `dvl`).
+  Gebaut in `bvc.Gef(YCD, bvi, aZJ)`; `bvi` ist die Variante: Spurkopf (`bub`/`bui`/`bum` via `buT`),
+  Timeline (`timeline.nSh` -> `uLT`/`IQP`, bvi `NlD`), Launcher-Slots im Arranger (`bcW`, "arranger_matrix_track_slots_widget"),
+  Launcher-Steuerung (`bgI`, "track_launcher_controls_widget").
+- Aufbau: senkrechter Stapel `dXL.sSO()` [ `dYU` (Höhe = `clip_lane_height`, Bindung `YCD.rcd()->ZhV.LYs()`), Automations-Container `dZi` ];
+  letzter Schritt `this.beI(dAc)` (= `dvl.beI(dAc)`, setzt den Zeileninhalt).
+- Einziger Leser von `ZhV.LYs()` (Spurhöhe fürs Layout) ist `bvc` -> Zeilen stapeln sich nur über Widget-Größen;
+  Spurkopf/Timeline/Launcher bleiben synchron, solange alle `bvc` gleich behandelt werden.
+- Abstandshalter: `dXL.sCA(long)` hängt einen festen `dZl` an (Einheit: logische Pixel, Bitwig nutzt z. B. 2/4),
+  `dXL.Gef(min,max)` fügt oben ein. `dZl.sCA(J)` = min, `dZl.MgQ(J)` = max, Änderung -> `unz(J)` -> Neu-Layout.
+  `dXL.needsGapBetweenWidgets` gibt false, wenn ein Nachbar `oSd()` (Spacer) ist -> 0-px-Spacer ändern nichts.
+- Gruppen: `GJy` ist kein `YCD`; Gruppenkopf = `buH` (eigene Klasse, Höhe über `BPz.LYs()`). Master-Spur der Gruppe `wDt.smz()`.
+- Kommentar beobachtbar: `rMD.GKF()` -> `Vyh` (neu je Aufruf, Attribut `kd.mEL()`), `addListener(NVD)`;
+  `NVD.eventOccurred(Object)` (Name stabil). Setter-Kette `Heb` -> `iMb` -> `PJ3` -> `gNZ` feuert `wLf.fireValueChanged(GKF(),..)`.
+- Aktivieren `rMD.ZRB(Z)` (6.1.4 `qoU`), Spur-Löschen `qxz.beI(List,CmH)` (in 6.1.7 privat), `CmH.Gef(Collection)` (öffentlich) –
+  aus 0.1.0 bekannt, jetzt nicht mehr benutzt.
+
+### Umsetzung
+- Hook `track-row-spacers`: REPLACE_CALL in `bvc.Gef(LYCD;Lbvi;LaZJ;)V` auf `bvc.beI(LdAc;)V` (1. Aufruf).
+  Bridge `TrackSpacerHooks.setRowContent(bvc, dAc)`: packt den Inhalt in `dXL.sSO()` [dZl oben, Inhalt, dZl unten], beide 0 px,
+  Größe aus dem Kommentar; Register `WeakHashMap<sJU, List<WeakReference<dZl>[]>>`; je Spur ein Kommentar-Listener -> `refresh`.
+  Fehler -> Bitwigs Original-Inhalt, einmal geloggt.
+- Nur Spuren in `group.xDy()` (main_tracks), keine Gruppen-Master-Spur (`group.smz() == track`) -> sonst könnte Kopf/Timeline auseinanderlaufen.
+  Gruppen-Spuren selbst werden im Menü übergangen.
+- Alle `bvc`-Zeilen solcher Spuren bekommen den Stapel, auch ohne Tag (damit Tags später live wirken).
+- 6.1.4-Namen: bvc=btR, Gef(YCD,bvi,aZJ)=MRY, beI(dAc)=cfM, dAc=dyC, YCD=iKU.
+
+### Bau / Prüfung (0.2.0-dev.1)
+- `sh tools/build-mod.sh track-spacer`: modkit finish hooks=1 (Ziel gegen echtes 6.1.7-Jar geprüft), Remap 0 Warnungen,
+  Rundreise Code + Hooks OK, Namensprüfung verfügbar macOS 6.0, 6.1, 6.1.1, 6.1.2, 6.1.3, 6.1.4, 6.1.7.
+- Bytecode geprüft: Aufrufe sind die gewollten Überladungen.
+- `tools/make_uses.py` kennt keine F-Zeilen/Konstruktoren (für 0.2.0 nicht mehr relevant, nur Hinweis).
+- Offline-Check (`loader/prepare-mod.sh`) NICHT ausgeführt -> Nutzer-Schritt (prüft u. a. Bytecode-Verifikation des Hooks).
+
+### Stand
+- [x] Machbarkeit geprüft, Lücken-Variante gebaut, Logik-Tests grün.
+- [ ] Offline-Check (Rückfrage nötig).
+- [ ] Test in Bitwig (Patchbay > Mods > Add Mod… > `out/track-spacer`, Framework "Actions and Menus" mit aktivieren).
+
+### Offene Risiken (ungetestet in Bitwig)
+- Ob alle Arranger-Listen wirklich nur über `bvc` laufen (z. B. Gruppen-Zeilen, Effekt-/Master-Bereich) – v. a. Ausrichtung Kopf/Timeline prüfen.
+- Gruppen: keine Lücke über/unter dem Gruppenkopf (nur an Spuren darin). Ausbau: gleiches Muster an `buH` + Gruppen-Timeline-Zeile.
+- Klick/Drop in die Lücke: gehört zur `bvc`-Zeile der Spur (Verhalten ungeprüft).
+- Zusätzliche Box-Ebene in jeder Spurzeile (auch ohne Lücke): mögliche Nebenwirkungen auf Hintergrund/Hover/Drag.
+- Comment-Listener-Thread: angenommen UI-Thread (wie alle Dokument-Änderungen aus Menüs).
+- Lücken liegen im Kommentar (sichtbar im Inspector/Mixer-Kommentar).
