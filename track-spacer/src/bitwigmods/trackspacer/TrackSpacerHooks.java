@@ -7,7 +7,6 @@ import bitwig.obf.dAc;  // something a widget can hold as its content
 import bitwig.obf.dXL;  // a box that stacks widgets (here: top to bottom)
 import bitwig.obf.dZl;  // an empty spacer widget inside such a box (min/max size)
 import bitwig.obf.dwF;  // a widget
-import bitwig.obf.egG;  // a theme colour
 import bitwig.obf.ekS;  // what a box takes as its background
 import bml.api.Arg;
 import bml.api.At;
@@ -59,15 +58,18 @@ public final class TrackSpacerHooks {
             sJU track = trackWithSpacers(row.lIt()); // lIt: the track this row shows
             if (track != null && content instanceof dwF widget) {
                 seeProject(track);
-                // The row itself paints over its whole height (selection colour, colour strip), so each
-                // gap gets a box of its own, filled with the arranger's background ("Grey 1",
-                // as Bitwig's arranger panel and rows use). Children paint over their parent.
-                egG background = row.mum().SQL(); // mum: the row's theme colours
                 dXL box = dXL.sSO();          // a box that stacks top to bottom (as bvc's own)
-                box.byf(0);                   // no extra space between its widgets (default would be 2)
-                dZl above = filledSpacer(box, background);
+                // The spacers MUST be direct children of this box: a box only lays out children
+                // that are spacers or have a size > 0 in both directions (dXU.kwH), and a box
+                // holding nothing but a spacer is 0 wide -> it would be dropped (bug in 0.2.1).
+                dZl above = box.sCA(0L);      // a fixed spacer, 0 px for now
                 box.IvP(widget);              // Bitwig's row content
-                dZl below = filledSpacer(box, background);
+                dZl below = box.sCA(0L);
+                // The box's background colour is painted only over its spacers and the gaps between
+                // its children, never under the content (dXL.beI(ijY, SZB)). So the gaps are opaque
+                // in the arranger background ("Grey 1", as Bitwig's arranger panel and rows use) and
+                // hide the row's own colour (selection, colour strip) there.
+                box.beI((ekS) row.mum().SQL()); // mum: the row's theme colours
                 register(track, above, below);
                 result = box;
             }
@@ -93,17 +95,23 @@ public final class TrackSpacerHooks {
             if (inserted == null) {
                 return;
             }
-            sJU anyTrackInProject = group;
-            seeProject(anyTrackInProject); // tracks that were already there count as seen
+            GJy root = group.TUb(); // TUb: the project's top-level group
+            boolean projectKnown;
+            synchronized (SEEN) {
+                // Only once the project is shown (its rows built, all its tracks recorded): while a
+                // project loads nothing is ever removed.
+                projectKnown = root != null && SEEN_PROJECTS.containsKey(root);
+            }
+            if (!projectKnown) {
+                return;
+            }
             List<sJU> tracks = new ArrayList<>();
             collect(inserted, tracks); // the track, or a group with all tracks inside
             synchronized (SEEN) {
                 for (sJU track : tracks) {
-                    if (!SEEN.containsKey(track)) {
-                        String comment = track.wze(); // wze: comment
-                        if (SpacerRule.hasAny(comment)) {
-                            track.Heb(SpacerRule.withoutAll(comment)); // Bitwig's comment setter
-                        }
+                    String comment = track.wze(); // wze: comment
+                    if (CopyRule.removeTags(true, SEEN.containsKey(track), comment)) {
+                        track.Heb(SpacerRule.withoutAll(comment)); // Bitwig's comment setter
                     }
                     SEEN.put(track, Boolean.TRUE); // from now on it is part of the project
                 }
@@ -150,15 +158,6 @@ public final class TrackSpacerHooks {
                 }
             }
         }
-    }
-
-    /** Adds a box filled with the background colour to the column, holding one spacer (0 px for now). */
-    private static dZl filledSpacer(dXL column, egG background) {
-        dXL holder = dXL.sSO();
-        holder.beI((ekS) background); // background_color of the box: opaque
-        dZl spacer = holder.sCA(0L);  // its only child; the box is as high as the spacer
-        column.IvP(holder);
-        return spacer;
     }
 
     /**

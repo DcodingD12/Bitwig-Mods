@@ -7,7 +7,7 @@
 - Bauen: `sh tools/build-mod.sh <mod-ordner>` -> `out/<mod-id>/` (helper.jar, mod.json, README.md).
   Das Compile-Jar `build/bitwig-compile.jar` entsteht beim ersten Bau (nie teilen/committen).
 - Tests: `python3 -m unittest discover -s tools` (Manifest-Skript, translate_hooks), `sh tools/test-java.sh track-height-lock` (Sperr-Regel),
-  `sh tools/test-java.sh track-spacer` (Spacer-Tags + Plan).
+  `sh tools/test-java.sh track-spacer` (Spacer-Tags + Plan + Kopie-Regel), `sh tools/probe-layout.sh` (Layout mit echten Bitwig-Klassen).
 - Offline-Check (`loader/prepare-mod.sh`) überschreibt `loader/mod-runtime` im BML-Ordner -> nur nach Rückfrage.
 
 ## Mod: track-height-lock (Spurhöhe sperren)
@@ -188,6 +188,25 @@
   - Ungeprüft: ob der Streifen vom Eltern-Hintergrund kommt (dann abgedeckt) oder als Overlay nach den Kindern gemalt wird
     (dann bliebe er sichtbar); ob „Grey 1“ exakt dem sichtbaren Arranger-Schwarz entspricht; ob eine leere `dXL` ohne Padding 0 px hoch ist.
 
+### Version 0.2.2-dev.1 (Fehler aus 0.2.1 behoben: gar keine Lücke mehr)
+- Nutzertest 0.2.1 (Bitwig 6.1.7, BML 0.36.0-dev.17 unter `~/Library/Application Support/PatchbayLauncher/installs/BML-0.36.0-dev.17-macos`,
+  NICHT die Installation unter /Applications): Mod geladen und vorbereitet (`PREPARE_OK ... verify`, Ersatzklassen `bvc` und `GJy`
+  geladen, `~/Library/Logs/Bitwig/BitwigStudio.log`), keine Exception, keine `[track-spacer]`-Zeile im Log -> stiller Fehler.
+- Ursache (belegt): `dXU.kwH(child)` legt nur Kinder an, die Spacer (`dZl`) sind ODER deren Max-Größe Breite>0 UND Höhe>0 hat.
+  `dZl` meldet quer zur Stapelrichtung immer 0 (`dZl.mL_()`), eine Box nur mit Spacer ist also 0 breit -> wird verworfen.
+  0.2.1 steckte jeden Spacer in eine eigene Halter-Box (für die Farbe) -> Lücke immer 0 px.
+  Reproduziert mit den echten Klassen: `track-spacer/probe/LayoutProbe.java` (`sh tools/probe-layout.sh`, nur lesend):
+  Halter 16 px, Zeilenbox 0 px.
+- Fix: wieder Spacer als direkte Kinder (wie 0.2.0). Farbe über `dXM.beI(ekS)` auf der Zeilenbox selbst: `dXL.beI(ijY, SZB)` malt den
+  Hintergrund NUR über Spacern und Lücken zwischen Kindern, nie unter dem Inhalt -> Lücke deckend in `mum().SQL()` ("Grey 1").
+  `byf(0)` entfernt (nicht nötig: neben Spacern gibt es keine Zwischenabstände).
+- Kopie-Hook defensiver: greift nur, wenn das Projekt schon angezeigt und erfasst ist (`SEEN_PROJECTS`), beim Laden nie;
+  Entscheidung in `CopyRule` (getestet). Der Hook ist an der Menü-Kette (Menü -> Kommentar -> Listener -> Lücke) nicht beteiligt.
+- Prüfungen: `sh tools/test-java.sh track-spacer` (inkl. Ablauf Menü-Tag -> Lücke, Kopie -> ohne Tag), `sh tools/probe-layout.sh`
+  (`LAYOUT_PROBE_OK`), Bau mit 2 Hooks, Rundreise OK, Namensprüfung 6.0–6.1.7 OK. Offline-Check (prepare-mod.sh) nicht ausgeführt;
+  0.2.1 mit denselben Hook-Zielen wurde aber in der echten BML-dev.17-Installation vorbereitet und verifiziert.
+- Ungetestet in Bitwig: Malen der Lückenfarbe (Probe prüft nur Layout), ob der blaue Streifen dadurch verdeckt wird, Kopie-Hook in der Praxis.
+
 ### Bau / Prüfung (0.2.0-dev.1)
 - `sh tools/build-mod.sh track-spacer`: modkit finish hooks=1 (Ziel gegen echtes 6.1.7-Jar geprüft), Remap 0 Warnungen,
   Rundreise Code + Hooks OK, Namensprüfung verfügbar macOS 6.0, 6.1, 6.1.1, 6.1.2, 6.1.3, 6.1.4, 6.1.7.
@@ -198,6 +217,7 @@
 ### Stand
 - [x] Machbarkeit geprüft, Lücken-Variante gebaut, Logik-Tests grün.
 - [x] 0.2.1-dev.1: Kopien ohne Spacer, Lücke deckend in Hintergrundfarbe; gebaut (2 Hooks), Tests grün.
+- [x] 0.2.2-dev.1: Lücke wieder sichtbar (Halter-Box entfernt), Farbe über Zeilenbox, Ablauftest mit echten Bitwig-Klassen grün.
 - [ ] Offline-Check (Rückfrage nötig).
 - [ ] Test in Bitwig (Patchbay > Mods > Add Mod… > `out/track-spacer`, Framework "Actions and Menus" mit aktivieren).
 

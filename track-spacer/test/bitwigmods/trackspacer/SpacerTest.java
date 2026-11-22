@@ -71,6 +71,19 @@ public final class SpacerTest {
         same("leave other side of neighbour", clear(on(5, 2), on(5, 1), on(5, 3)), List.of());
         same("nothing to clear", clear(on(5, 2), no, no), List.of());
 
+        // CopyRule: only fresh copies in a shown project lose their tags
+        check("copy loses tags", CopyRule.removeTags(true, false, "#spacer-before"));
+        check("moved/grouped track keeps tags", !CopyRule.removeTags(true, true, "#spacer-before"));
+        check("while loading nothing is removed", !CopyRule.removeTags(false, false, "#spacer-after"));
+        check("copy without tags: nothing to do", !CopyRule.removeTags(true, false, "Bass"));
+
+        // Flow: menu writes the tag -> the row reads the gap from the comment (no copy step involved)
+        String afterMenu = SpacerRule.withBefore("Bass");
+        same("flow: menu tag gives a gap", SpacerRule.gapBefore(afterMenu), SpacerRule.DEFAULT_GAP);
+        check("flow: menu-tagged existing track is never treated as a copy", !CopyRule.removeTags(true, true, afterMenu));
+        // Flow: duplicate of that track -> copy loses the tag, rest stays
+        same("flow: duplicate keeps the rest", CopyRule.removeTags(true, false, afterMenu) ? SpacerRule.withoutAll(afterMenu) : afterMenu, "Bass");
+
         boolean threw = false;
         try {
             SpacerPlan.toTag(new boolean[2], new boolean[3], new boolean[2], SpacerPlan.Side.BEFORE);
