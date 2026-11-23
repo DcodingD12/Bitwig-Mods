@@ -12,8 +12,9 @@ Needs **Framework: Actions and Menus** (`action-menu-composition-framework`) to 
   Several selected tracks are locked at once.
 - To unlock, right-click again and choose **Unlock track height**. This removes `#lock` from the comment
   and `(L)` from the name (also an older `[L]` or lock emoji); the rest of comment and name stay exactly as they were.
-- Locking and unlocking are **not undoable**: Cmd+Z / Edit > Undo never locks or unlocks a track,
-  and they add no entry to the undo history. Only the menu changes the lock.
+- Locking and unlocking are **not undoable**: they add no entry to the undo history, so Cmd+Z / Edit > Undo
+  can't take back a lock or unlock. Undo of an OLDER step that changed the name or comment can still bring
+  back an older name or comment and with it remove or restore a mark (see "Known limits").
   The project is marked as changed, so save it (Cmd+S) to keep the lock.
 
 You can also lock by hand: type `#lock` into the comment, or `(L)`, `[L]` or the lock emoji into the name.
@@ -34,6 +35,8 @@ the "zoom lane heights" shortcuts. Unlocked tracks behave as usual.
 ## Bitwig versions
 
 Written against Bitwig 6.1.4 names (macOS), so BML's map packs translate it to other versions.
+(Why two versions: the source code uses the names of the installed Bitwig 6.1.7; the build translates the
+finished mod to 6.1.4 names, the reference BML's map packs translate from. Details in NOTES.md.)
 Checked offline against the map packs in BML 0.36.0-dev.13 (names only):
 
 | Bitwig (macOS) | Available |

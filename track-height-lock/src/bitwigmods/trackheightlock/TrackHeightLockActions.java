@@ -120,7 +120,9 @@ public final class TrackHeightLockActions implements ActionProvider {
             });
             if (changed[0]) {
                 CmH project = targets.get(0).cc_();
-                project.nhI(true); // "is_modified" (not undoable itself): Bitwig asks to save
+                if (project != null) {
+                    project.nhI(true); // "is_modified" (not undoable itself): Bitwig asks to save
+                }
             }
         } catch (Throwable failure) {
             MOD.log("could not change the lock marks", failure);

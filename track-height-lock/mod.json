@@ -4,7 +4,7 @@
     "id": "track-height-lock",
     "name": "Arranger: Track Height Lock",
     "area": "Arranger",
-    "version": "0.3.0-dev.1",
+    "version": "0.3.1-dev.1",
     "author": "Silent Orbit",
     "description": "Keeps the arranger height of chosen tracks fixed. Right-click a track: 'Lock track height' adds #lock to its comment and ' (L)' to its name, 'Unlock track height' removes both. Locking and unlocking are not undoable (Cmd+Z doesn't change them). Needs Framework: Actions and Menus.",
     "documentation": "readme"
