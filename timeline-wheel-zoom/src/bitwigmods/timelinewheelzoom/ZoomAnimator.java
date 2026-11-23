@@ -52,6 +52,10 @@ final class ZoomAnimator implements doe {
         if (GLIDE.running() && clock == null) {
             clock = dsB.Gef(FRAMES); // per-frame callback until stop()
         }
+        if (!GLIDE.running() && clock == null) {
+            view = null;  // total input 0: nothing runs, so don't hold on to the view
+            model = null;
+        }
     }
 
     // doe.aboutToPaint(dre): once per frame while a zoom runs.
