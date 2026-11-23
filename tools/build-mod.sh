@@ -1,18 +1,33 @@
 #!/bin/sh
-# Builds one BML mod on macOS (steps 1-8 of BML's docs/sdk/building.md).
+# Builds one BML mod on macOS (follows BML's docs/sdk/building.md).
 #
-#   sh tools/build-mod.sh settings-scaling-drag
+#   sh tools/build-mod.sh track-spacer
 #
 # Needs a JDK 21+ for javac (Bitwig's own Java has no compiler). Set JAVAC if it isn't on PATH:
-#   JAVAC=/path/to/jdk/bin/javac sh tools/build-mod.sh settings-scaling-drag
+#   JAVAC=/path/to/jdk/bin/javac sh tools/build-mod.sh track-spacer
 # The installable folder ends up in out/<mod-id>/.
 set -eu
 
-MOD_ID="${1:?usage: sh tools/build-mod.sh <mod-folder>}"
+MOD_ID="${1:-}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# Safety check BEFORE anything is deleted: the name ends up in "rm -rf build/<name> out/<name>" below.
+# Without this, e.g. "sh tools/build-mod.sh .." would delete the whole repo (including .git).
+case "$MOD_ID" in
+  ""|*[!a-z0-9-]*)
+    echo "BUILD_ERROR: invalid mod folder '$MOD_ID' (only a-z, 0-9 and '-' allowed, e.g. track-spacer)." >&2
+    echo "usage: sh tools/build-mod.sh <mod-folder>" >&2
+    exit 1 ;;
+esac
 MOD="$ROOT/$MOD_ID"
+if [ ! -f "$MOD/mod.json" ]; then
+  echo "BUILD_ERROR: $MOD/mod.json not found - '$MOD_ID' is not a mod folder." >&2
+  exit 1
+fi
 WORK="$ROOT/build/$MOD_ID"
 OUT="$ROOT/out/$MOD_ID"
+# Second line of defence: both must be real sub folders of build/ and out/ (not the folders themselves).
+case "$WORK" in "$ROOT/build/"?*) ;; *) echo "BUILD_ERROR: unsafe work folder $WORK" >&2; exit 1 ;; esac
+case "$OUT" in "$ROOT/out/"?*) ;; *) echo "BUILD_ERROR: unsafe output folder $OUT" >&2; exit 1 ;; esac
 
 BML="${BML:-/Applications/BML-0.36.0-dev.13-macos}"
 KIT="$BML/modkit"

@@ -1,7 +1,8 @@
 """Writes the inverse of a BML remap (target build -> source build), with H rows taken from the target jar.
 Usage: python3 invert_remap.py <remap a__b.tsv.gz> <jar of b> <out b__a.tsv.gz>"""
-import sys, gzip, zipfile, importlib.util
-spec = importlib.util.spec_from_file_location("js", "/Applications/BML-0.36.0-dev.13-macos/docs/sdk/jarsearch.py")
+import sys, os, gzip, zipfile, importlib.util
+BML = os.environ.get("BML", "/Applications/BML-0.36.0-dev.13-macos")  # same default as the shell scripts
+spec = importlib.util.spec_from_file_location("js", os.path.join(BML, "docs/sdk/jarsearch.py"))
 js = importlib.util.module_from_spec(spec); spec.loader.exec_module(js)
 src, jarp, out = sys.argv[1:4]
 rows, seen = [], {}

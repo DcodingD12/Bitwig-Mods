@@ -16,9 +16,12 @@ rm -rf "$OUT"
 mkdir -p "$OUT"
 # Only the sources that don't need Bitwig: the tests and the classes they use (found via -sourcepath).
 find "$MOD/test" -name '*Test.java' > "$OUT/sources.txt"
-"$JDK/bin/javac" --release 21 -encoding UTF-8 -sourcepath "$MOD/src:$MOD/test" -d "$OUT" @"$OUT/sources.txt"
+# javac's @file splits at spaces, so every path goes in quotes there.
+sed 's/.*/"&"/' "$OUT/sources.txt" > "$OUT/javac-args.txt"
+"$JDK/bin/javac" --release 21 -encoding UTF-8 -sourcepath "$MOD/src:$MOD/test" -d "$OUT" @"$OUT/javac-args.txt"
 
-for f in $(cat "$OUT/sources.txt"); do
+# One path per line (works with spaces in paths); java gets no stdin so it can't eat the list.
+while IFS= read -r f; do
   cls="$(echo "${f#"$MOD/test/"}" | sed 's/\.java$//; s#/#.#g')"
-  "$JDK/bin/java" -cp "$OUT" "$cls"
-done
+  "$JDK/bin/java" -cp "$OUT" "$cls" </dev/null
+done < "$OUT/sources.txt"

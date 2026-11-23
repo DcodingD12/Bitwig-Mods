@@ -3,7 +3,7 @@ the remap source->that build to find each member's declaring class.
 Usage: python3 make_uses.py <helper.jar (source names)> <remap source__real.tsv.gz> <real bitwig.jar> <out uses.tsv>"""
 import sys, gzip, zipfile, subprocess, re, os, tempfile
 helper, remap, realjar, out = sys.argv[1:5]
-JAVAP = "/opt/homebrew/opt/openjdk@25/bin/javap"
+JAVAP = os.path.join(os.environ.get("JDK", "/opt/homebrew/opt/openjdk@25"), "bin/javap")  # same default as the shell scripts
 fwd_c, fwd_m, inv_c = {}, {}, {}
 for line in gzip.open(remap, "rt", encoding="utf-8"):
     p = line.rstrip("\n").split("\t")
