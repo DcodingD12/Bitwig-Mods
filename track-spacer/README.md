@@ -52,7 +52,7 @@ Checked offline against the map packs in BML 0.36.0-dev.13 (names only):
 | 6.0, 6.1, 6.1.1 | no: one name (marking the project as changed) has no counterpart there |
 
 Windows and Linux were not checked (no map packs for them in this BML install).
-The mod has not been tried in Bitwig yet.
+It is a pre-release that works in daily use on Bitwig 6.1.7 (macOS), but expect rough edges.
 
 ## Known limits (prototype)
 

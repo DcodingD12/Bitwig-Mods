@@ -22,7 +22,7 @@ import java.util.Set;
 /**
  * Three rows in the track's right-click menu (Framework: Actions and Menus), like REAPER's
  * "Insert spacer before/after tracks" and "Remove spacer". They only write tags into track comments
- * ("#spacer-before" / "#spacer-after"); TrackSpacerHooks draws the gaps. Each run is one undo step.
+ * ("#spacer-before" / "#spacer-after"); TrackSpacerHooks draws the gaps. Not part of Undo: a run adds no undo step.
  *
  * Names are Bitwig 6.1.7 (macOS).
  */

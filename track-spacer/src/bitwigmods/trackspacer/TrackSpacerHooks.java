@@ -345,6 +345,9 @@ public final class TrackSpacerHooks {
                 ROWS.put(track, rows);
                 listenToComment(track);
             }
+            // Rows Bitwig has thrown away (e.g. after rebuilding the arranger) would pile up here if the
+            // comment never changes, so clear them out now as well (refresh() does the same).
+            rows.removeIf(pair -> pair[0].get() == null || pair[1].get() == null);
             rows.add(new WeakReference[] {new WeakReference<>(above), new WeakReference<>(below)});
         }
         String comment = track.wze();
