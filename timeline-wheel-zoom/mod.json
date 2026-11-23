@@ -1,0 +1,25 @@
+{
+  "manifest_version": 2,
+  "mod": {
+    "id": "timeline-wheel-zoom",
+    "name": "Arranger: Timeline Wheel Zoom",
+    "area": "Arranger",
+    "version": "0.2.0-dev.1",
+    "author": "Silent Orbit",
+    "description": "With the mouse over the arranger's timeline ruler (bars / time), the mouse wheel zooms the time axis smoothly around the mouse position (same amount and direction as Cmd+wheel). With a modifier key held, the wheel works as before.",
+    "documentation": "readme"
+  },
+  "built_against": {
+    "bitwig_version": "6.1.4",
+    "platform": "macos",
+    "architecture": "universal"
+  },
+  "resources": {
+    "readme": {
+      "kind": "file",
+      "path": "README.md",
+      "media_type": "text/markdown"
+    }
+  },
+  "requires": []
+}

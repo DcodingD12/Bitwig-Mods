@@ -291,3 +291,66 @@
 - Extra box level in every track row (even without a gap): possible side effects on background/hover/drag.
 - Comment listener thread: assumed to be the UI thread (like all document changes from menus).
 - Gaps live in the comment (visible in the inspector/mixer comment).
+
+## Mod: timeline-wheel-zoom (mouse wheel over the arranger ruler zooms the time axis)
+
+### Findings (Bitwig 6.1.7, read only)
+- Wheel path: macOS `CocoaTopLevelWindowHandle.handleMouseWheelEvent` -> `eqH` (window wheel event; units always
+  `eqI.Gef` = pixels on macOS, a mouse notch = 15) -> `dqz.beI(eqH)`: reuses the last handler for 1 s while the mouse is
+  inside the handler's widget (latching, fields `qJX`/`CtA`), else asks the widget tree -> handler `dty`, then `dty.beI(dLl)`.
+- Search: `dwF.sCA(x,y,mLC,eqw)` -> `epr.beI` with post-order visitor `dwN` -> calls `dwF.beI(DDLmLC;Leqw;)Ldty;` deepest
+  widget first, then parents; first non-null wins. Base `dwF` returns null. (Second path `dwF.Gef(...)`/`dwO` when
+  `eqH.LYs()`, momentum-like events; `dVg.Gef` only scrolls there.)
+- `dVg` (zoomable scroll view): `beI(...)` returns `sCA(axis)` = `dVm` (zoom handler) with Cmd (`eqw.sCA()`) or pref
+  `drf.gMN()` (middle mouse navigation mode), else `Gef(axis)` = `dVk` (scroll). `dVm.beI(dLl)`: amount (negated if
+  `drf.Sye()` = reverse wheel zoom pref), steps -> `dUD.beI(I,D)`, pixels -> `dUD.Gef(I,D)`, position = mouse along axis
+  in the view -> zoom around the mouse. `dUD` = scrollbar model (controller API `ScrollbarModel`, `zoomAtPosition` = `dUD.sCA(DD)`).
+- Static `dVg.MgQ(dwF, mLC)` walks up to the nearest dVg whose model on that axis is zoomable.
+- Rulers: `vMG` (bars, extends `YxJ`) and `m2M` (time, extends `GmT`), both under `SiG`; only built in `PYe`.
+  No class from `vMG`/`m2M` up to `dwF` overrides `beI(DDLmLC;Leqw;)Ldty;` (checked with javap).
+- Arranger header: `aGm.beI(aZJ)` builds `haN` (subclass of `PES` -> `PYe`) and wraps it in `MhB` (extends `F2l` -> `dVg`);
+  `MhB.qVz()` = horizontal `dUD`, also bound to the arranger's horizontal scrollbar `pQW`. Track lanes have their own `MhB`.
+- `mLC`: `beI` = HORIZONTAL, `Gef` = VERTICAL (`mLC.Gef()` = is vertical). `eqw.Bqk()` = any modifier held.
+
+### Implementation (0.1.0-dev.1)
+- One hook `ruler-wheel-zooms`: OVERRIDE_INSTEAD on `SiG` for `beI(DDLcom/bitwig/base/geom/mLC;Leqw;)Ldty;`
+  (manifest: ADD_METHOD, args slots `arg5`/`arg6`). Vertical wheel + no modifier + a `haN` among the parents ->
+  `dVg.MgQ(ruler, HORIZONTAL).sCA(HORIZONTAL)` (Bitwig's own Cmd+wheel zoom handler); otherwise null (= old behaviour).
+- Decision in `WheelRule` (tested: `sh tools/test-java.sh timeline-wheel-zoom`).
+- Build: 1 hook, round trip OK, names available on macOS 6.0–6.1.7. `make_uses.py` reports the field `mLC.beI`
+  (6.1.4 `LWw.cfM`) as UNRESOLVED (no F rows); checked by hand: the field exists in all 6 packs.
+- ZIP: `out/timeline-wheel-zoom-0.1.0-dev.1.zip`. User test in Bitwig: works, direction fine, but choppy.
+
+### Smooth zoom (0.2.0-dev.1)
+- Why choppy: Bitwig's `dVm` applies each event at once: `dUD.Gef(int px, double mouse)` = zoom * 2^(px / `dpT.gNZ()`)
+  (`dxM.Gef(IJ)`; notches: `dxM.beI(IJ)` = zoom * (1+`jTs()`)^n), then a deferred runnable (`drf.sCA(Runnable)`, only valid
+  during event dispatch) sets offset = round(`dxM.beI(time, 0)` - mouse). A mouse notch on macOS = 15 px -> one visible jump.
+- Names (6.1.7): `dUD.af()`/`dxM.beI()` = zoom (time per pixel), `dxM.beI(D,J,Z)` = set zoom, `dUD.PJ3()` = model (cast `dxM`),
+  `dUD.VNw()` = offset, `dUD.Gak()` = visible size, `dUD.LRq()` = content size, `dUD.sCA(D)` = pixel -> time,
+  `duW.beI(D,D)` = time -> pixel, `dUD.Gef(J)` = set offset (clamped by `duW.a_`).
+  Frame clock like look-and-feel's SmoothScroll (6.1.4 `drd`/`dmO`/`dpM`): 6.1.7 `dsB.Gef(doe)` registers,
+  `dsB.beI()` unregisters, `doe.aboutToPaint(dre)` per frame before layout, `dre.MgQ()` = seconds since last frame (0 first).
+  look-and-feel's code itself is not reusable (its classes, its scroll models `dSX` = offset only), only the pattern.
+- Implementation: hook returns `SmoothZoomHandler` (extends `dty`, widget = header `MhB`, so latching is unchanged).
+  It turns each event into log2 zoom with Bitwig's own formula (x `ZOOM_STRENGTH`) -> `ZoomAnimator` (implements `doe`):
+  `ZoomGlide` (pure Java, tested) hands out an exponential share per frame (`SMOOTHING_SECONDS`), each frame sets the zoom and
+  the offset immediately so the time under the mouse stays (anchor time fixed while the mouse stays put).
+  Stops if offset/zoom were changed by someone else, the view is hidden, or the zoom limit is reached.
+  Any exception -> fallback to Bitwig's `dVm` for the rest of the session (logged once).
+- Constants in `ZoomSettings`: `ZOOM_STRENGTH` 1.0, `SMOOTHING_SECONDS` 0.07, `REVERSE_DIRECTION` false,
+  `MAX_PENDING_DOUBLINGS` 4, `FINISH_BELOW` 0.0005.
+- `drf.Sye()` (reverse wheel zoom pref) has NO 6.1.4 counterpart in the official remap (pref not in 6.1.4) -> not read
+  (would break 6.0–6.1.4 or hit a foreign method). Replaced by `REVERSE_DIRECTION`.
+- Build: 1 hook, round trip OK, 37 names OK on 6.0–6.1.7. make_uses UNRESOLVED: fields `LWw.cfM`, `epi.cfM` (checked by hand,
+  in all 6 packs) and the constructor `dsc.<init>(dve)` (constructors aren't remapped; class exists in all packs).
+  Translated jar: `SmoothZoomHandler.cfM(dJN)` = 6.1.7 `dty.beI(dLl)` (correct override).
+- ZIP: `out/timeline-wheel-zoom-0.2.0-dev.1.zip` (the 0.1.0 ZIP is still there; delete only after asking). Not committed.
+
+### Open risks (untested in Bitwig)
+- Offset set immediately per frame (Bitwig defers it to after the event): if the offset clamp uses a content size that is
+  only updated at layout, the anchor may lag a frame; the next frame corrects it (anchor time is fixed).
+- Offset is whole pixels: at very deep zoom the anchor can wobble by up to half a pixel.
+- If Bitwig's follow-playhead moves the view during a glide, the glide stops (by design).
+- Latching: Bitwig keeps the handler for 1 s while the mouse is inside the header `MhB`.
+- The old plain-wheel behaviour over the ruler is replaced; with a modifier it is unchanged.
+- Offline check (`prepare-mod.sh`) not run (overwrites BML's loader/mod-runtime) -> ask first.

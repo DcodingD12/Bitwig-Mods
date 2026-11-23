@@ -8,6 +8,7 @@ By Silent Orbit.
 | [**Track Height Lock**](track-height-lock/README.md) | Lock the arranger height of chosen tracks so it can't be changed by accident. |
 | [**Track Spacer**](track-spacer/README.md) | Add an empty gap above or below tracks in the arranger, like REAPER's "Insert spacer before/after tracks". No extra track is created. |
 | [**Zoom Toggle**](zoom-toggle/README.md) | One key zooms to the selected clip in time and makes its track tall; press again to go back. |
+| [**Timeline Wheel Zoom**](timeline-wheel-zoom/README.md) | Mouse wheel over the arranger's timeline ruler zooms the time axis smoothly around the mouse. No modifier key needed. |
 
 All mods are **pre-releases** (`0.x-dev`): they work in daily use on Bitwig 6.1.7 (macOS), but expect rough edges.
 Windows and Linux have not been checked.
@@ -25,7 +26,7 @@ Windows and Linux have not been checked.
    Get it from [github.com/shaboogen-dev/Patchbay](https://github.com/shaboogen-dev/Patchbay) and follow the
    installation steps there.
 2. Download the ZIP of the mod you want from the [Releases page](../../releases)
-   (`track-height-lock-….zip`, `track-spacer-….zip` and/or `zoom-toggle-….zip`). Don't unzip it.
+   (`track-height-lock-….zip`, `track-spacer-….zip` and/or `zoom-toggle-….zip` and/or `timeline-wheel-zoom-….zip`). Don't unzip it.
 3. Open **Patch Bay**, go to **Mods > Add Mod…** and choose the ZIP.
 4. Make sure **Framework: Actions and Menus** is enabled, and enable the mod.
 5. Start Bitwig through Patch Bay. If an older version of the mod is installed, remove it first.
@@ -84,6 +85,20 @@ it and assign one (for example **Z**).
 - Whether it also works in the clip editor has not been checked.
 
 Details: [zoom-toggle/README.md](zoom-toggle/README.md)
+
+## Timeline Wheel Zoom
+
+Move the mouse over the arranger's timeline ruler (bar numbers 1, 2, 3 … and, if shown, the time 0:00, 0:01 …) and turn
+the mouse wheel. **No modifier key is needed**, just the plain wheel (Bitwig's own zoom needs Cmd+wheel):
+
+- Wheel up zooms in, wheel down zooms out, smoothly and around the mouse position. It works on a trackpad too
+  (two-finger vertical swipe).
+- With **any modifier key held** (Shift, Cmd, Alt, Ctrl) the wheel over the ruler behaves as before.
+- Everywhere else the wheel is unchanged. Only the arranger ruler is affected, not the detail editor.
+- No framework needed. Strength, smoothness and direction are constants you can change (see the mod's README).
+- Only tested on Bitwig 6.1.7 (macOS).
+
+Details: [timeline-wheel-zoom/README.md](timeline-wheel-zoom/README.md)
 
 ## Building from source
 
