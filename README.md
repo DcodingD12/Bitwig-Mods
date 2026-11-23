@@ -7,7 +7,7 @@ By Silent Orbit.
 |---|---|
 | [**Track Height Lock**](track-height-lock/README.md) | Lock the arranger height of chosen tracks so it can't be changed by accident. |
 | [**Track Spacer**](track-spacer/README.md) | Add an empty gap above or below tracks in the arranger, like REAPER's "Insert spacer before/after tracks". No extra track is created. |
-| [**Zoom Toggle**](zoom-toggle/README.md) | One key zooms to the selected clip in time and makes its track tall; press again to go back. |
+| [**Zoom Toggle**](zoom-toggle/README.md) | One key hides the clip launcher, zooms to the selected clip in time and makes its track tall; press again to go back. |
 | [**Timeline Wheel Zoom**](timeline-wheel-zoom/README.md) | Mouse wheel over the arranger's timeline ruler zooms the time axis smoothly around the mouse. No modifier key needed. |
 
 All mods are **pre-releases** (`0.x-dev`): they work in daily use on Bitwig 6.1.7 (macOS), but expect rough edges.
@@ -75,14 +75,15 @@ Details: [track-spacer/README.md](track-spacer/README.md)
 Adds the action **Zoom to Fit Selection (Toggle)**. It has no default key: in **Settings > Shortcuts** search for
 it and assign one (for example **Z**).
 
-- First press: zooms the time axis to the selection (Bitwig's own "Zoom to Fit Selection or Previous") and makes
-  the selected track tall.
-- Second press: zooms back and lowers the track again.
+- First press: hides the clip launcher (if shown), zooms the time axis to the selection (Bitwig's own
+  "Zoom to Fit Selection or Previous") and makes the selected track tall.
+- Second press: zooms back, lowers the track again and shows the launcher again (only if the mod hid it).
+- The launcher is hidden because it shares its rows with the arranger: a taller track would make its row tall too.
 
 - The track height uses a fixed number of steps (40), so the result is a prototype's guess, not an exact fit
   to the window height.
 - Only tested on Bitwig 6.1.7 (macOS); it may not work on other versions yet.
-- Whether it also works in the clip editor has not been checked.
+- Arranger only: in the clip editor the key does nothing.
 
 Details: [zoom-toggle/README.md](zoom-toggle/README.md)
 
