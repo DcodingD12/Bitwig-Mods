@@ -7,7 +7,12 @@
 - Build: `sh tools/build-mod.sh <mod-folder>` -> `out/<mod-id>/` (helper.jar, mod.json, README.md).
   The compile jar `build/bitwig-compile.jar` is created by the first build (never share/commit it).
 - Tests: `python3 -m unittest discover -s tools` (manifest script, translate_hooks), `sh tools/test-java.sh track-height-lock` (lock rule),
-  `sh tools/test-java.sh track-spacer` (spacer tags + plan + copy rule), `sh tools/probe-layout.sh` (layout + painting with Bitwig's real classes).
+  `sh tools/test-java.sh track-spacer` (spacer tags + plan + copy rule), `sh tools/test-java.sh timeline-wheel-zoom`,
+  `sh tools/test-java.sh zoom-toggle` (follow-the-selection state),
+  `sh tools/probe-layout.sh` (layout + painting with Bitwig's real classes).
+- `build-mod.sh` only accepts mod folder names of `a-z 0-9 -` that contain a `mod.json` (checked before its `rm -rf`).
+  `invert_remap.py` reads `$BML`, `make_uses.py` reads `$JDK` (defaults as before).
+  Known: `build-mod.sh` still fails if the repo path contains a space (javac `@sources.txt`); `test-java.sh` handles it.
 - Offline check (`loader/prepare-mod.sh`) overwrites `loader/mod-runtime` in the BML folder -> only after asking.
 
 ## Mod: track-height-lock (lock the track height)
@@ -354,3 +359,81 @@
 - Latching: Bitwig keeps the handler for 1 s while the mouse is inside the header `MhB`.
 - The old plain-wheel behaviour over the ruler is replaced; with a modifier it is unchanged.
 - Offline check (`prepare-mod.sh`) not run (overwrites BML's loader/mod-runtime) -> ask first.
+
+## Mod: zoom-toggle (one shortcut: zoom to the selection + tall track, again: back)
+
+### Attempt "restore exact height" REVERTED (after review, version number unchanged)
+- Idea: remember lane heights (`btR`/`dYU.gPa()`), set them back with `dYU.BBg(old)` instead of 40 steps down
+  (Bitwig stops at its maximum on the way up, so 40 down can end below the start height).
+- In Bitwig 6.1.7 it broke: the second press did not shrink the track, further presses made it taller and taller.
+  Reverted to the old 40 steps up / 40 steps down. The below-start-height case remains a known limit.
+- Not understood why (probably `gPa()`/`BBg()` do not behave like the zoom step does). Needs a Bitwig-side probe before a retry.
+
+### Tall track follows the selection (still 0.2.0-dev.1, version number unchanged, NOT tested in Bitwig)
+- Wish: while zoomed, clicking another track/clip makes that track tall and the previous one small again.
+- Findings (6.1.7, read only; javap + a small ClassFile-API scanner on bitwig.jar. Careful: unzipping the jar on macOS
+  loses classes, names differ only in case, e.g. `aZJ`/`azj` -> always read from the jar):
+  - Action chain: `aCZ.Bqr`/`Tsf` -> `aCZ.VkJ`/`gHt` -> `aZJ.beI(±1, true)` -> `aGq.beI(IZ)` -> if `bkD.unz()` (lane mode) lanes via
+    `buZ.beI(I,List,List)`, else `buZ.beI(I, true, bkD.sCA())`. `buZ.beI(IZList)` visits ALL `bDm` rows below it (recursive, incl.
+    groups) and steps each row whose track (`bDm.lIt()`) is in the list (`buT.beI(I)`/`buC.beI(I)`), then scrolls to the listed tracks.
+    -> the selection is only a filter list; we pass our own list. No selection change, same step code, height is not undoable (flag 394).
+  - No Bitwig action for "a specific track": only `arranger_zoom_in/out_lane_heights_all/_selected`.
+  - `aGq` sets `bkD.beI(false)` (no lane mode) when the arranger is built. `aZJ.ocs()` = `aGq`, `aGq.UIe()` = `bkD`,
+    `bkD.sCA()` = selected tracks (List of `zCn`), `bkD.Anf()` = `bkE`, `bkE.TaR()` = observable list `cxg`;
+    `cxg.beI(loD)`/`Gef(loD)` add/remove a list listener (`loD` methods have real names: insertedItems, aboutToRemoveItems, ...).
+    Bitwig's own `aGq.Gef(uVN)` listens to that same list.
+  - Root rows widget: `aGq.gNZ` (private) = the first `buZ` found by `epr.beI(aGq, buZ.class, Consumer)` (parents before children);
+    nested groups have their own `buZ` (`buC.beI(uVN,aZJ)`) inside it. Sanity check `buZ.XzC() == view`.
+- Implementation: `FollowState` (pure Java, tested: `sh tools/test-java.sh zoom-toggle`), `SelectionFollower` (listener + one-shot frame
+  callback `dsB.Gef(doe)` like timeline-wheel-zoom; the listener only schedules, the step runs on the next frame, several events = one step).
+  - First press unchanged (Bitwig's action); before it the selected tracks are remembered as "tall".
+  - Selection changed: shrink tall-not-selected by 40, grow selected-not-tall by 40 (shrink first, so the scroll ends on the new track).
+    Empty selection = no change. Same tracks = no change. Lane mode (`bkD.unz()`) = no following.
+  - Second press: if tall == selected -> Bitwig's `aCZ.Tsf` as before; otherwise shrink exactly the tall tracks via `buZ`.
+    Fixes "the wrong track shrinks" (also when the selection changed without a follow step).
+  - Loop guard: events ignored while our step runs (busy) and while one is pending; our step never touches the selection.
+  - Any error: following off until the next first press; second press then uses `aCZ.Tsf` (old behaviour). Logged once.
+- Build: 0 hooks, remap 0 warnings, round trip OK. Names: OK on 6.1.1–6.1.7; on 6.0 and 6.1 two names are missing
+  (`bkD.sCA()` = 6.1.4 `bjp.Hnt`, `buZ.beI(IZList)` = `btO.cfM`) -> the mod is no longer available there (README requires 6.1.2+ anyway).
+  The 3 UNRESOLVED `aBW` fields are the old action fields (as before). Link probe (classes loaded against the real jar) OK.
+- First user test (track-selection version): following works, BUT it also followed a pure track selection (click on the
+  track header / empty track row) and made tracks without clips tall. -> changed to follow the CLIP selection (below).
+
+### Follow the selected clips instead of the selected tracks (still 0.2.0-dev.1, NOT tested in Bitwig)
+- Wish: the tall track only changes when clips are selected; it becomes the track(s) of the selected clip(s).
+  Only a track selected / click into empty space (no clips selected) = nothing changes.
+- Findings (6.1.7, read only):
+  - Arranger timeline selection model `bkb` (field `aZJ.Hqm`, also `aCG.fmw()`) extends `bkw` -> `bjw`: `bjw.MgQ()` = `bjs`
+    (object selection = clips), `bjw.ckt()` = `bjv` (time selection). `bjs` is built on `rBG.yX3()` = `WSI` (impl `YLc`, a `GRp`).
+  - Public path: `aZJ.eNb()` = `BPz` (arranger timeline, an `rBG`) -> `yX3()` (declared in `pXr`) = `WSI` -> `jvQ()` = `AAN` (a `cxg`):
+    the observable list of selected objects. Same list `bjs.TaR()` returns.
+  - Arranger clips: `BVS` (impl `TKq` -> `Iui`/`EdV`, concrete `eOj` and `Pb` = note clip). Clip -> track: `BVS.ZRB()` (`sct`) = `oxD`
+    -> `oxD.GwM()` = ancestor of class `YCD` cast to `zCn`. Bitwig's own `bkb.scr()` maps selected clips the same way (`BVS.ZRB()`).
+  - `YCD` is implemented by `PiT`, which extends `sJU` (checked with `isAssignableFrom`) -> the same track objects as in the track
+    selection and the rows (`bDm.lIt()`). Group tracks have no clips.
+- Change: `SelectionFollower` listens to the clip list (not the track list); a follow step takes the tracks of the selected `BVS`
+  items (`FollowState.tracksOf`: each once, non-clips skipped). No clips = no change (`FollowState.follow` with an empty list).
+  First press and second press unchanged (tall = selected tracks at the first press; back: `aCZ.Tsf` if tall == selected tracks,
+  else shrink exactly the tall tracks). Lane mode (`bkD.unz()`) still = no following.
+- Build: 0 hooks, remap 0 warnings, round trip OK, 48 names OK on 6.1.1–6.1.7; 6.0/6.1 still missing the same two names. Link probe OK.
+- ZIP: `out/zoom-toggle-0.2.0-dev.1.zip` (replaced). Not committed.
+- Open risks (untested in Bitwig): whether the clip list fires on every clip click (also on re-selecting); clips selected in the
+  launcher or in the detail editor are a different selection (not followed, intended); selecting only automation points / a time range
+  is no clip -> no change; whether the frame callback comes promptly; Z back after following: Bitwig's "zoom to fit selection or previous"
+  decides the time axis; shrinking only (no grow) scrolls to the shrunk track; deleted tracks in the tall list are simply skipped.
+
+### First press: only tracks with a selected clip (still 0.2.0-dev.1, NOT tested in Bitwig)
+- User test of the clip-follow version: following on clip clicks works. Left over: a click into empty space selects a track
+  (without a clip); Z then made THAT track tall, because the first press still ran `aCZ.Bqr` on the track selection.
+- Change (`ZoomToggleActions`): the first press reads the tracks of the selected clips (`SelectionFollower.selectedClipTracks`,
+  same path as the follow step) and decides with `FollowState.firstPress` (tested):
+  - no clip selected -> NOTHING: return at once (launcher, time axis, `zoomed` untouched, nothing half done);
+  - clips selected -> CLIP_TRACKS: launcher hidden as before, `buZ.beI(+1, true, clipTracks)` x 40 (same step size as `Bqr`),
+    `aCZ.Or` as before, following starts with tall = the clip tracks;
+  - clip tracks unknown (lane mode, no view, error) -> BITWIG_ACTION: `aCZ.Bqr` x 40 on the selected tracks as before, tall = selected tracks.
+  - If the `buZ` step fails (rows not found / exception before a step) -> fallback `aCZ.Bqr`, tall = selected tracks.
+- Way back unchanged: `aCZ.Tsf` only if tall == selected tracks, else shrink exactly the tall tracks (never another one).
+- Build: 0 hooks, remap 0 warnings, round trip OK, 48 names OK on 6.1.1–6.1.7 (6.0/6.1: same two missing names).
+- ZIP: `out/zoom-toggle-0.2.0-dev.1.zip` (replaced). Not committed.
+- Open: the first press no longer checks via Bitwig's action whether the arranger handles it (the arranger panel around the focus
+  and a shown arranger view are still required); "Zoom to Fit Selection or Previous" still decides the time axis by itself.

@@ -17,8 +17,9 @@ Windows and Linux have not been checked.
 
 - Bitwig Studio **6.1.2 – 6.1.7** on **macOS** (built against 6.1.4, translated to other versions by BML's map packs).
 - [Patch Bay](https://github.com/shaboogen-dev/Patchbay) with BML installed. The mods do not run without it.
-- The mod **Framework: Actions and Menus** (`action-menu-composition-framework`) must be installed and enabled.
-  The mods add their menu entries and shortcut actions through it.
+- The mod **Framework: Actions and Menus** (`action-menu-composition-framework`) must be installed and enabled
+  for Track Height Lock, Track Spacer and Zoom Toggle: they add their menu entries and shortcut actions through it.
+  Timeline Wheel Zoom doesn't need it.
 
 ## Installation
 
@@ -28,7 +29,7 @@ Windows and Linux have not been checked.
 2. Download the ZIP of the mod you want from the [Releases page](../../releases)
    (`track-height-lock-….zip`, `track-spacer-….zip` and/or `zoom-toggle-….zip` and/or `timeline-wheel-zoom-….zip`). Don't unzip it.
 3. Open **Patch Bay**, go to **Mods > Add Mod…** and choose the ZIP.
-4. Make sure **Framework: Actions and Menus** is enabled, and enable the mod.
+4. Make sure **Framework: Actions and Menus** is enabled (not needed for Timeline Wheel Zoom), and enable the mod.
 5. Start Bitwig through Patch Bay. If an older version of the mod is installed, remove it first.
 
 ## Track Height Lock
@@ -76,12 +77,16 @@ Adds the action **Zoom to Fit Selection (Toggle)**. It has no default key: in **
 it and assign one (for example **Z**).
 
 - First press: hides the clip launcher (if shown), zooms the time axis to the selection (Bitwig's own
-  "Zoom to Fit Selection or Previous") and makes the selected track tall.
-- Second press: zooms back, lowers the track again and shows the launcher again (only if the mod hid it).
+  "Zoom to Fit Selection or Previous") and makes the track(s) of the selected clip(s) tall; other tracks stay as they are.
+  With no clip selected the key does nothing.
+- While zoomed, the tall track follows the selected clips: select a clip on another track and that track becomes
+  tall while the previous one goes back down. Selecting only a track or clicking into empty space changes nothing.
+  The time axis stays as it is.
+- Second press: zooms back, lowers the track that is tall at that moment and shows the launcher again (only if the mod hid it).
 - The launcher is hidden because it shares its rows with the arranger: a taller track would make its row tall too.
 
 - The track height uses a fixed number of steps (40), so the result is a prototype's guess, not an exact fit
-  to the window height.
+  to the window height. The way back uses the same number of steps down, so after a very tall zoom the track may end up a little lower than before (known limit).
 - Only tested on Bitwig 6.1.7 (macOS); it may not work on other versions yet.
 - Arranger only: in the clip editor the key does nothing.
 
