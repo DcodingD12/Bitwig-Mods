@@ -6,8 +6,8 @@ Small arranger mods for [Bitwig Studio](https://www.bitwig.com/) that run on [**
 |---|---|
 | [**Track Height Lock**](track-height-lock/README.md) | Lock the arranger height of chosen tracks so it can't be changed by accident. |
 | [**Track Spacer**](track-spacer/README.md) | Add an empty gap above or below tracks, like REAPER's "Insert spacer before/after tracks". No extra track is created. |
-| [**Zoom Toggle**](zoom-toggle/README.md) | One key hides the clip launcher, zooms to the selected clip and makes its track tall; press again to go back. |
-| [**Timeline Wheel Zoom**](timeline-wheel-zoom/README.md) | Plain mouse wheel over the timeline ruler (arranger and detail editor / piano roll) zooms the time axis smoothly around the mouse. |
+| [**Zoom Toggle**](zoom-toggle/README.md) | One key hides the clip launcher, zooms to the selected clip and makes its track tall; press again to go back. Bitwig 6.1.2 – 6.1.7. |
+| [**Timeline Wheel Zoom**](timeline-wheel-zoom/README.md) | Plain mouse wheel over the timeline ruler (arranger and detail editor / piano roll) zooms the time axis smoothly around the mouse. Bitwig 6.1.2 – 6.1.7. |
 | [**Pinned Tracks**](pinned-tracks/README.md) | Like Cubase's "Divide Track List": pinned tracks stay fixed at the top of the arranger, the rest scrolls below a thin divider. |
 
 All mods are **pre-releases** (`0.x-dev`), used daily on Bitwig 6.1.7 (macOS). Windows and Linux are untested.
