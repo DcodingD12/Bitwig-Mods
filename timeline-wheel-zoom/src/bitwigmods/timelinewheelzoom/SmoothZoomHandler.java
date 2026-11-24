@@ -9,7 +9,7 @@ import bitwig.obf.eqI; // the units of a wheel event: notches or pixels
 import com.bitwig.base.geom.mLC; // an axis: HORIZONTAL or VERTICAL
 
 /**
- * Wheel handler for the arranger ruler: instead of zooming at once (Bitwig's own handler),
+ * Wheel handler for a timeline ruler (arranger or detail editor): instead of zooming at once (Bitwig's own handler),
  * it turns the wheel input into an amount of zoom and hands it to the ZoomAnimator, which
  * zooms there smoothly, frame by frame, around the mouse position.
  *
@@ -23,7 +23,7 @@ final class SmoothZoomHandler extends dty {
     private final dVg view;
 
     SmoothZoomHandler(dVg view) {
-        super(view); // the gesture belongs to the whole header view, as with Bitwig's own handler
+        super(view); // the gesture belongs to the whole header view (MhB), as with Bitwig's own handler
         this.view = view;
     }
 

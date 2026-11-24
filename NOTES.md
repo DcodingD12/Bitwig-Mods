@@ -297,7 +297,7 @@
 - Comment listener thread: assumed to be the UI thread (like all document changes from menus).
 - Gaps live in the comment (visible in the inspector/mixer comment).
 
-## Mod: timeline-wheel-zoom (mouse wheel over the arranger ruler zooms the time axis)
+## Mod: timeline-wheel-zoom (mouse wheel over the arranger / detail editor ruler zooms the time axis)
 
 ### Findings (Bitwig 6.1.7, read only)
 - Wheel path: macOS `CocoaTopLevelWindowHandle.handleMouseWheelEvent` -> `eqH` (window wheel event; units always
@@ -359,6 +359,33 @@
 - Latching: Bitwig keeps the handler for 1 s while the mouse is inside the header `MhB`.
 - The old plain-wheel behaviour over the ruler is replaced; with a modifier it is unchanged.
 - Offline check (`prepare-mod.sh`) not run (overwrites BML's loader/mod-runtime) -> ask first.
+
+### Detail editor / piano roll (0.3.0-dev.1, NOT tested in Bitwig)
+- Wish: the same wheel zoom over the ruler of the detail editor (piano roll / note editor).
+- Decision: COMBINED in this mod (no separate `piano-roll-wheel-zoom`). Reasons (6.1.7, read only, own ClassFile-API scanner on bitwig.jar):
+  - Same ruler classes: `vMG`/`m2M` (base `SiG`) are only built in `PYe.beI(olw,bkw,OnD)`/`PYe.Gef(...)`; the existing hook on `SiG`
+    already runs for the detail editor's rulers, it just answered null there (`haN` check). No ruler class is a `PYe`.
+  - Same scroll view: the detail editor wraps its header in the same `MhB` (`aNi.beI(dwF, ju1, Z)` -> `MhB.beI(dwF,ju1)`);
+    the first `MhB.qVz()` becomes the editor's horizontal model `aNi.ccv` (`dUD`), later ones share it (`MhB.beI(dVI)`).
+    So `dVg.MgQ(ruler, HORIZONTAL)`, `SmoothZoomHandler` and `ZoomAnimator` work unchanged.
+  - No second hook, no new hook target, the arranger path is unchanged (only the place check got a second answer).
+- Detail editor structure: panel `baN` (string `detail_editor.no_clip_selected`) -> `baN.beI(bke,HSH)` picks one of four content widgets
+  (all extend `aNi`, a widget): `aHd` (model `bka`, header `timeline.mLC`), `aKK` (`bky`, header `aeK`), `aHp` (`bkc`, header `bMt`),
+  `aKU` (`bkz`, header `tic`). Header built in `aNi.Gef(HSH,bke,baN)` -> `beI(HSH,bke,SYP,baN)`. Which variant is which mode
+  (notes / audio / automation, clip / track mode) was not worked out; all four are detail editor and get the zoom.
+- PYe subclasses in 6.1.7: `haN` (arranger, built only in `aGm.beI(aZJ)`) and `timeline.mLC`, `aeK`, `bMt`, `tic` (built only by the
+  four `aNi` subclasses above). Rule: first `PYe` above the ruler: `haN` -> ARRANGER, any other `PYe` -> DETAIL_EDITOR, none -> OTHER.
+- Note: `timeline.mLC` (detail editor header) is NOT `com.bitwig.base.geom.mLC` (the axis).
+- Implementation: `WheelRule.Place` (ARRANGER / DETAIL_EDITOR / OTHER), `WheelRule.shouldZoom(vertical, modifier, place, detailEditorOn)`
+  (tested), `TimelineWheelZoomHooks.placeOf(ruler)`, switch `ZoomSettings.DETAIL_EDITOR` (true; false = arranger only as before).
+- Collision check: no mod in BML dev.17 hooks `SiG`/`Mwz` (6.1.4). Note: BML has a "Framework: Piano Roll" (`piano-roll-framework`), it does not hook this method.
+- 6.1.4 names: SiG=Mwz, PYe=dBl, haN=BrJ, MhB=Nfw, aNi=aMh, baN=aZv.
+- Build: 1 hook, remap 0 warnings, round trip OK, 38 names (new: `PYe`) OK on macOS 6.0–6.1.7; same 3 UNRESOLVED as 0.2.0 (known).
+  Enum switch compiles to a plain `ordinal()` tableswitch (no extra class).
+- ZIP: `out/timeline-wheel-zoom-0.3.0-dev.1.zip` (0.2.1 ZIP still there). Not committed.
+- Open (only checkable in Bitwig): that the wheel over the detail editor ruler really zooms smoothly around the mouse; that
+  Cmd+wheel there did zoom before (same `MhB`, so expected); that the note area follows the ruler (shared model `ccv`); behaviour in the
+  audio/automation modes and in the detail editor in a separate window / Edit layout; the wheel over the notes stays unchanged.
 
 ## Mod: zoom-toggle (one shortcut: zoom to the selection + tall track, again: back)
 

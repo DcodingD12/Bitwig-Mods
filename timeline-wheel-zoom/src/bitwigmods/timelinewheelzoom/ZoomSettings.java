@@ -13,6 +13,12 @@ final class ZoomSettings {
      */
     static final double ZOOM_STRENGTH = 1.0;
 
+    /**
+     * true = the wheel also zooms over the detail editor's ruler (piano roll / note editor, and the
+     * audio and automation modes, which use the same ruler). false = arranger ruler only (as up to 0.2.x).
+     */
+    static final boolean DETAIL_EDITOR = true;
+
     /** true = wheel up and down swapped (Bitwig's own reverse-zoom setting is not followed). */
     static final boolean REVERSE_DIRECTION = false;
 

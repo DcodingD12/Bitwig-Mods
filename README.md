@@ -7,7 +7,7 @@ Small arranger mods for [Bitwig Studio](https://www.bitwig.com/) that run on [**
 | [**Track Height Lock**](track-height-lock/README.md) | Lock the arranger height of chosen tracks so it can't be changed by accident. |
 | [**Track Spacer**](track-spacer/README.md) | Add an empty gap above or below tracks, like REAPER's "Insert spacer before/after tracks". No extra track is created. |
 | [**Zoom Toggle**](zoom-toggle/README.md) | One key hides the clip launcher, zooms to the selected clip and makes its track tall; press again to go back. |
-| [**Timeline Wheel Zoom**](timeline-wheel-zoom/README.md) | Plain mouse wheel over the timeline ruler zooms the time axis smoothly around the mouse. |
+| [**Timeline Wheel Zoom**](timeline-wheel-zoom/README.md) | Plain mouse wheel over the timeline ruler (arranger and detail editor / piano roll) zooms the time axis smoothly around the mouse. |
 
 All mods are **pre-releases** (`0.x-dev`), used daily on Bitwig 6.1.7 (macOS). Windows and Linux are untested.
 
@@ -29,7 +29,7 @@ All mods are **pre-releases** (`0.x-dev`), used daily on Bitwig 6.1.7 (macOS). W
 - **Track Height Lock:** right-click a track > *Lock / Unlock track height*. The track gets `#lock` in its comment and ` (L)` in its name and ignores all height changes. Not undoable; save to keep it.
 - **Track Spacer:** right-click a track > *Insert Spacer Before / After Tracks* or *Remove Spacer*. Stored as `#spacer-before` / `#spacer-after` (optionally `=30` for the size in px) in the comment. Not part of Undo; not copied when duplicating a track.
 - **Zoom Toggle:** assign a key to **Zoom to Fit Selection (Toggle)** in *Settings > Shortcuts*. It zooms to the selected clip, makes its track tall (following the selection) and goes back on the second press.
-- **Timeline Wheel Zoom:** turn the wheel over the ruler, no modifier needed. With Shift/Cmd/Alt/Ctrl held, the wheel behaves as before.
+- **Timeline Wheel Zoom:** turn the wheel over the ruler of the arranger or the detail editor (piano roll), no modifier needed. With Shift/Cmd/Alt/Ctrl held, the wheel behaves as before.
 
 Each mod's README has the details and limits.
 
