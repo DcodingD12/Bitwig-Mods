@@ -32,7 +32,7 @@ All mods are **pre-releases** (`0.x-dev`), used daily on Bitwig 6.1.7 (macOS). W
 - **Track Spacer:** right-click a track > *Insert Spacer Before / After Tracks* or *Remove Spacer*. Stored as `#spacer-before` / `#spacer-after` (optionally `=30` for the size in px) in the comment. Not part of Undo; not copied when duplicating a track.
 - **Zoom Toggle:** assign a key to **Zoom to Fit Selection (Toggle)** in *Settings > Shortcuts*. It zooms to the selected clip, makes its track tall (following the selection) and goes back on the second press.
 - **Timeline Wheel Zoom:** turn the wheel over the ruler of the arranger or the detail editor (piano roll), no modifier needed. With Shift/Cmd/Alt/Ctrl held, the wheel behaves as before.
-- **Pinned Tracks:** right-click a top-level track > *Pin to Top* / *Unpin*. Stored as `#pin` in the comment; undoable. Pinned tracks sit between the ruler and the scrolling tracks, with a divider in the timeline's bar line colour. Not tested in Bitwig yet.
+- **Pinned Tracks:** right-click a top-level track > *Pin to Top* / *Unpin*. Stored as `#pin` in the comment; undoable. Pinned tracks sit between the ruler and the scrolling tracks in every arranger column (track headers, timeline, clip launcher), followed by a thin divider in the bar line colour and a 20 px gap. They can be reordered by drag and drop within the pinned area.
 
 Each mod's README has the details and limits.
 
