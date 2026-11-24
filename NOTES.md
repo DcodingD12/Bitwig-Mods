@@ -464,3 +464,44 @@
 - ZIP: `out/zoom-toggle-0.2.0-dev.1.zip` (replaced). Not committed.
 - Open: the first press no longer checks via Bitwig's action whether the arranger handles it (the arranger panel around the focus
   and a shown arranger view are still required); "Zoom to Fit Selection or Previous" still decides the time axis by itself.
+
+## Idea: split track list (Cubase "Divide Track List") – feasibility only, NOTHING built yet
+
+Wish: chosen tracks stay fixed at the top of the arranger (own area under the ruler, divider), the rest scrolls below.
+The official Controller API can't change the UI layout at all -> only possible as a BML UI patch.
+
+### Findings (Bitwig 6.1.7, read only: javap + a small ClassFile-API scanner on bitwig.jar)
+- Arranger layout `aGj.MgQ(uVN, aZJ)` (base of the arranger view `aGq`): vertical box (`dXL.unz(0)`, `mLC.Gef` = vertical)
+  [spacer, header/ruler `beI(aZJ)`, spacer, box5, spacer, footer]. box5 = `dXL.unz(1)` (vertical) [`Bqk`, `Anf`].
+  `Bqk` = `beI(OnD, aZJ)` = the Global row (`bvs`, from `uVN.dNa()`), already FIXED above the scrolling list.
+  `Anf` = `sCA(kwH())` = `dVg` scroll view (vertical only: `wGt(false)`, `PJ3(true)`, model `aZJ.wBT()`) around the root `buZ`.
+  -> Bitwig already has "fixed area above the scrolling list"; a pinned area would go between `Bqk` and `Anf`
+  (REPLACE_CALL on the 3rd `dXL.IvP(dwF)` in `aGj.MgQ`, `this`/args via an ENTRY hook).
+- Horizontal time axis: not done by `Anf` (horizontal off); each lane has its own `MhB` on the shared model -> rows outside `Anf`
+  follow time scroll/zoom (the Global row does exactly that). Inferred, not tested.
+- Root list `buZ` (extends `bva` -> `bCK` -> `bCL` -> `bCf`): `bCf.Gef(uVN, aZD)` builds [main tracks box `unz` (synced by `bCh`
+  from `uVN.rcd()`), add-track area `bBY` (`wLf`), effect section (`dZi`, bound to `fLj.rw3()`), master row]. `VsA()` = false
+  (Global row not in the list). Arranger orientation horizontal (`aZJ.WYl()`) -> the root list builds NO scroll view of its own.
+  `HOV()` gates effect section + master, `ocs()` main tracks + add area.
+- Row creation: `bCh.beI(zCn)` -> `bCf.unz(YCD)` / `bCf.Gef(uVN)` (group), then binds the row's visibility
+  `doI.beI(row.Afd(), new m32(track.Ml2(), fLj.LRq()))` (static). Insert: `bCh.beI(dwF, zCn, int)` -> `unz.BBg(row, index)`.
+- Visibility: `dwF.t_(Z)` (`dxu`, field `PhR`); `dXU.kwH` skips invisible non-spacer children -> hidden rows take no space.
+- Expressions: `m32` = OR, `ccS` = AND, `sFY(uB1)` = NOT, `kOl(cxg, Object)` = "list contains" (observable). All extend/implement
+  `uLF`/`lIU`/`uB1` -> "row visible = Bitwig's rule AND (pinned / not pinned)" can be expressed with Bitwig's own classes.
+- Track -> widgets: `aZJ.tWW` = `Map<zCn, drZ>` (a collection per track, `aZJ.sCA/MgQ(dwF, zCn)`) -> two rows per track tolerated.
+- Drag & drop of tracks: insertion point from the hovered row's document position (`TrackHeaderInsertionPoint(uVN, UXW, int, ..)`),
+  not from layout -> hidden rows don't shift drop positions.
+- PROBLEM: `aGq.beI(zCn)` (track -> `bDm` row, used e.g. for scroll-to-track) = first `bDm` in tree order with `lIt() == track`,
+  NO visibility check. With [Bqk, pinned, Anf] it would find the hidden copy in the pinned list. Needs a REPLACE_CALL on
+  `epr.beI(dwF, twa, Z)` there with a "shown" check. Other `epr` searches for `buZ`/`bDm` (also zoom-toggle's `epr.beI(aGq, buZ.class, ..)`)
+  have the same issue.
+
+### Possible design (not built): a second root list
+1. Pin storage: `#pin` in the track comment (like `#lock`), menu "Pin to Top / Unpin" via Framework: Actions and Menus.
+2. ENTRY `aGj.MgQ` (only `aGq`) + REPLACE_CALL 3rd `dXL.IvP` -> box5 = [Global, pinned area (second `buZ.beI(root, aZJ)` +
+   divider), scrolling list]. Pinned list without effect section/master (`HOV()` false while building it) and add area (`bBY.t_` false in `fBD`).
+3. ENTRY `buZ.unz(YCD)`/`buZ.Gef(uVN)` (remember list + track) + REPLACE_CALL `doI.beI(EO,uB1)` in `bCh.beI(zCn)`: only for the two
+   ROOT lists, wrap Bitwig's rule with AND(pinned) / AND(NOT pinned); nested group lists unchanged (only top-level tracks/groups pinnable).
+4. Fix `aGq.beI(zCn)` (visibility check), adjust zoom-toggle's `buZ` search.
+- Open questions: max height / draggable divider for the pinned area; cost of a second full set of row widgets (hidden ones still bound);
+  keyboard focus/auto-scroll; lane mode (`bkD`); automation lanes of pinned tracks; pinning tracks inside groups.
