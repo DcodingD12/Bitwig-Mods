@@ -1,3 +1,6 @@
+import com.bitwig.base.geom.ijY;
+import com.bitwig.base.geom.mLC;
+import com.bitwig.base.geom.uXa;
 import java.lang.classfile.ClassFile;
 import java.lang.classfile.ClassModel;
 import java.lang.classfile.CodeElement;
@@ -8,6 +11,9 @@ import java.lang.classfile.instruction.TypeCheckInstruction;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.Proxy;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -22,8 +28,8 @@ import java.util.zip.ZipFile;
  *
  * 1. Visibility rules as the hook builds them (row: "Bitwig's rule AND pinned" / "... AND NOT pinned",
  *    area: "any pinned row shown"), driven by a stand-in for a track comment: values and change events.
- * 2. The pinned area box [content, divider] bound to "any pinned row shown": hidden = no space in its parent,
- *    shown = content + divider height.
+ * 2. The pinned area [[content, line 2 px], gap 20 px] bound to "any pinned row shown": hidden = no space in its
+ *    parent, shown = content + line + gap; painted: line right below the content, gap below it, both full width.
  * 3. The divider colour object (egG.beI(name, SZB)) gives back exactly the mixed colour.
  * 4. Every concrete arranger column (subclass of aGj) is one the mod handles (0.1.0-dev.1 missed the timeline
  *    and launcher columns, so the clips of pinned tracks still scrolled).
@@ -76,6 +82,7 @@ public final class PinProbe {
     public static void main(String[] args) throws Exception {
         rules();
         layout();
+        paintArea();
         colour();
         columns(args.length > 0 ? args[0] : null, args.length > 1 ? args[1] : null);
         if (failures > 0) {
@@ -154,13 +161,10 @@ public final class PinProbe {
         dXL inner = dXL.sSO();
         inner.sCA(40L);
         doV content = doV.beI(inner, 1, 1, 1, 1);
-        dXL area = dXL.sSO();
-        area.IvP(content);
-        area.sCA(2L); // divider
-        area.beI((ekS) egG.beI("probe divider", new SZB(0.1f, 0.1f, 0.1f, 1f)));
+        dXL area = pinnedArea(content, egG.beI("probe divider", new SZB(0.1f, 0.1f, 0.1f, 1f)), egM.BBg().zzi());
         long contentH = height(content);
         check("content has a height", contentH > 0);
-        same("area = content + divider", height(area), contentH + 2);
+        same("area = content + line 2 + gap 20", height(area), contentH + 2 + 20);
 
         dXL parent = dXL.unz(1); // like aGj's box5: top to bottom, 1 px spacing
         dXL other = dXL.sSO();
@@ -181,6 +185,91 @@ public final class PinProbe {
         same("shown area is back", height(parent), both);
         comment.setValue("");
         check("unpinned live: area invisible again", !area.KrW());
+    }
+
+    /** Exactly what PinnedTracksHooks.pinnedArea builds: [[content, line 2 px], gap 20 px], two backgrounds. */
+    private static dXL pinnedArea(dwF content, egG lineColour, egG gapColour) {
+        dXL withLine = dXL.sSO();
+        withLine.IvP(content);
+        withLine.sCA(2L);
+        withLine.beI((ekS) lineColour);
+        dXL area = dXL.sSO();
+        area.IvP(withLine);
+        area.sCA(20L);
+        area.beI((ekS) gapColour);
+        return area;
+    }
+
+    /** Lays out [[100 x 40 content, line], gap] and records what each box paints as its background. */
+    private static void paintArea() throws Exception {
+        dXL content = fixed(100, 40);
+        egG line = egG.beI("probe line", new SZB(0f, 0f, 0f, 1f)); // black (a stand-in for the mixed bar line colour)
+        dXL area = pinnedArea(content, line, egM.BBg().zzi());     // Grey 1
+        dXL withLine = (dXL) content.oRH();
+        area.beI(0L, 0L, 100L, 62L);                               // bounds
+        call(area, dXL.class, "iK_", new Class<?>[0]);             // layout
+        call(withLine, dXL.class, "iK_", new Class<?>[0]);
+        same("inner box height", height(withLine), 42);
+        List<String> outer = paint(area, 100, 62);
+        List<String> inner = paint(withLine, 100, 42);
+        List<String> expectOuter = List.of("colour 0.102,0.102,0.102", "rect 0,42,100,20", "fill"); // gap below line, full width
+        List<String> expectInner = List.of("colour 0.000,0.000,0.000", "rect 0,40,100,2", "fill");  // line right below the content
+        check("gap painted " + outer + " expected " + expectOuter, outer.equals(expectOuter));
+        check("line painted " + inner + " expected " + expectInner, inner.equals(expectInner));
+    }
+
+    /** A widget of a fixed size (as in track-spacer's PaintProbe). */
+    private static dXL fixed(long w, long h) throws Exception {
+        dXL widget = new dXL() {
+            @Override protected ijY nj_() { return new ijY(w, h); }
+            @Override protected ijY iI_() { return new ijY(w, h); }
+            @Override protected ijY mL_() { return new ijY(w, h); }
+            @Override protected ijY iH_() { return new ijY(w, h); }
+        };
+        call(widget, dXL.class, "MgQ", new Class<?>[] {mLC.class}, mLC.beI);
+        call(widget, dwF.class, "H_", new Class<?>[0]);
+        return widget;
+    }
+
+    /** Calls the box's own background paint (dXL.beI(graphics)) with a graphics object that records what is drawn. */
+    private static List<String> paint(dXL box, long w, long h) throws Exception {
+        List<String> log = new ArrayList<>();
+        Class<?> g = Class.forName("com.bitwig.graphics.ijY");
+        Object graphics = Proxy.newProxyInstance(PinProbe.class.getClassLoader(), new Class<?>[] {g}, (proxy, m, a) -> {
+            String n = m.getName();
+            if (n.equals("ny_")) {
+                return new uXa(0, 0, w, h);
+            }
+            if (n.equals("sCA") && a != null && a.length == 1 && a[0] instanceof SZB c) {
+                log.add(String.format(java.util.Locale.ROOT, "colour %.3f,%.3f,%.3f", c.MgQ(), c.BBg(), c.unz()));
+            } else if (n.equals("beI") && a != null && a.length == 4 && a[0] instanceof Long) {
+                log.add("rect " + a[0] + "," + a[1] + "," + a[2] + "," + a[3]);
+            } else if (n.equals("scr") && (a == null || a.length == 0)) {
+                log.add("fill");
+            }
+            Class<?> r = m.getReturnType();
+            if (r == boolean.class) return false;
+            if (r == int.class) return 0;
+            if (r == long.class) return 0L;
+            if (r == double.class) return 0d;
+            if (r == float.class) return 0f;
+            return null;
+        });
+        call(box, dXL.class, "beI", new Class<?>[] {g}, graphics);
+        return log;
+    }
+
+    private static Object call(Object target, Class<?> start, String name, Class<?>[] types, Object... values) throws Exception {
+        for (Class<?> k = start; k != null; k = k.getSuperclass()) {
+            try {
+                java.lang.reflect.Method m = k.getDeclaredMethod(name, types);
+                m.setAccessible(true);
+                return m.invoke(target, values);
+            } catch (NoSuchMethodException next) {
+                // look in the superclass
+            }
+        }
+        throw new NoSuchMethodException(start.getName() + "." + name);
     }
 
     private static void colour() {

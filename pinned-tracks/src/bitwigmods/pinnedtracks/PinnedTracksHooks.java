@@ -82,8 +82,10 @@ public final class PinnedTracksHooks {
     private static final Bml.Mod MOD = Bml.mod("pinned-tracks");
     private static volatile boolean loggedProblem = false;
 
-    /** Height of the divider below the pinned tracks, in Bitwig's logical pixels. */
+    /** Height of the divider line right below the last pinned track, in Bitwig's logical pixels. */
     static final long DIVIDER_PX = 2L;
+    /** Height of the empty gap below that line, before the scrolling tracks, in logical pixels. Change freely. */
+    static final long GAP_PX = 20L;
 
     private PinnedTracksHooks() {
     }
@@ -313,14 +315,19 @@ public final class PinnedTracksHooks {
         box.IvP(scrollingList); // what Bitwig does
     }
 
-    /** [pinned list(s) of this column, divider], shown only while a pinned row is shown. */
+    /**
+     * [[pinned list(s) of this column, divider line], gap], shown only while a pinned row is shown.
+     * Every column gets the same line and gap, so the rows below stay lined up across the columns.
+     * A box paints its background only over its spacers (full width) and gaps, never under its children
+     * (checked for track-spacer and in the probe), so two nested boxes give two colours:
+     * the inner box's spacer = the line (bar line colour), the outer box's spacer = the gap ("Grey 1",
+     * the colour of the empty track area and of the gaps between tracks).
+     */
     private static dwF pinnedArea(Build build) {
         ListInfo info = build.pinned;
-        dXL area = dXL.sSO();                              // top to bottom
-        area.IvP(build.pinnedContent);                     // framed by the column itself (kwH), like its scrolling list
-        area.sCA(DIVIDER_PX);                              // a fixed spacer = the divider
-        // A box paints its background only over spacers and gaps, never under its children
-        // (checked for track-spacer), so the background colour is exactly the divider's colour.
+        dXL withLine = dXL.sSO();                          // top to bottom
+        withLine.IvP(build.pinnedContent);                 // framed by the column itself (kwH), like its scrolling list
+        withLine.sCA(DIVIDER_PX);                          // a fixed spacer = the divider line
         egG colour;
         try {
             colour = dividerColour(build.view);
@@ -328,7 +335,12 @@ public final class PinnedTracksHooks {
             colour = build.view.mum().zzi(); // "Grey 1", the colour between tracks (e.g. a theme without "Grey 2")
             problem("could not take the grid line colour, the divider uses the track gap colour", t);
         }
-        area.beI((ekS) colour);
+        withLine.beI((ekS) colour);
+
+        dXL area = dXL.sSO();
+        area.IvP(withLine);
+        area.sCA(GAP_PX);                                  // a fixed spacer = the gap
+        area.beI((ekS) build.view.mum().zzi());            // "Grey 1": empty track area / gaps between tracks
         doI.beI(area.Afd(), info.anyShown);                // visible only while a pinned row is shown
         return area;
     }

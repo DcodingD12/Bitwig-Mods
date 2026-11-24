@@ -466,7 +466,7 @@
 - Open: the first press no longer checks via Bitwig's action whether the arranger handles it (the arranger panel around the focus
   and a shown arranger view are still required); "Zoom to Fit Selection or Previous" still decides the time axis by itself.
 
-## Mod: pinned-tracks (Cubase "Divide Track List") – 0.1.0-dev.3 built; dev.1/dev.2 tested by the user
+## Mod: pinned-tracks (Cubase "Divide Track List") – 0.1.0-dev.4 built; dev.1–dev.3 tested by the user
 
 Wish: chosen tracks stay fixed at the top of the arranger (own area under the ruler, divider), the rest scrolls below.
 The official Controller API can't change the UI layout at all -> only possible as a BML UI patch.
@@ -596,3 +596,14 @@ The official Controller API can't change the UI layout at all -> only possible a
   launcher controls (`aGf`) build lists only in `kwH()` (probe), so they had no such leftover.
 - Build: 27 hooks, round trip OK, 123 names OK on 6.1.7; no other dev.17 mod hooks the same methods (6.1.4 classes aEZ, aFj, aFq, bAV, bAX, dIN).
 - Untested: reordering in Bitwig, drop feedback (insert line) drawn in the pinned area, dragging clips (not tracks) over pinned lanes.
+
+### 0.1.0-dev.4 (wish: a visible gap between the pinned area and the scrolling tracks, ~20 px, in all columns)
+- Area per column = outer `dXL.sSO()` [inner `dXL.sSO()` [pinned content, spacer `DIVIDER_PX` = 2], spacer `GAP_PX` = 20];
+  inner background = divider colour (line right below the last pinned row), outer background = `mum().zzi()` = theme "Grey 1"
+  (empty track area: `aGq.kwH` frames with `SQL()` = Grey 1, `bvp.ng_()` = `zzi()` = Grey 1; also the colour between tracks).
+  Two nested boxes because a box paints its background only over its spacers/gaps (full width), never under children, and a
+  box holding only a spacer is 0 wide (track-spacer 0.2.1 bug) -> no separate gap widget. Visibility bound on the outer box.
+- Probe: layout (content + 2 + 20, hidden = 0) and paint (recording graphics like track-spacer's PaintProbe: inner paints
+  rect 0,40,100,2 in the line colour, outer rect 0,42,100,20 in Grey 1, nothing under the content). The probe rebuilds the same
+  structure itself (same calls, not the hook's code).
+- Untested in Bitwig: the look, the same height in all four columns, the gap disappearing on unpin.

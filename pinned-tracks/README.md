@@ -1,7 +1,7 @@
 # Arranger: Pinned Tracks
 
 Like Cubase's **Divide Track List**: pinned tracks stay in a fixed area at the top of the arranger,
-right below the ruler. The other tracks scroll below it as usual. A thin divider separates the two areas.
+right below the ruler. The other tracks scroll below it as usual. A thin line and a 20 px gap separate the two areas.
 
 Needs **Framework: Actions and Menus** (`action-menu-composition-framework`) to be enabled too.
 
@@ -18,13 +18,16 @@ The pin is stored with the project, because the comment is. Without the mod the 
 
 ## What it looks like
 
-- Order from the top: ruler, Global row (tempo/markers, as before), **pinned tracks**, divider, scrolling tracks.
+- Order from the top: ruler, Global row (tempo/markers, as before), **pinned tracks**, a 2 px line, a 20 px gap,
+  scrolling tracks. Line and gap run through all columns (headers, clip launcher, timeline) at the same height.
 - Pinned tracks keep their order from the project. They don't move when you scroll up or down, in every
   column of the arranger: track headers, the timeline with the clips, and the clip launcher (slots and
   controls) when it is shown in the arranger. Scrolling and zooming in time works for both areas together.
 - The pinned tracks are Bitwig's normal track rows: edit clips, mute/solo/arm, select, resize, automation lanes.
-- The divider has the colour of the timeline's bar lines on the track lanes (taken from Bitwig's theme and
-  grid contrast setting when the arranger is shown). It is only there while at least one track is pinned.
+- The line has the colour of the timeline's bar lines on the track lanes (taken from Bitwig's theme and
+  grid contrast setting when the arranger is shown); the gap has the colour of the empty track area (theme "Grey 1").
+  Both are only there while at least one pinned track is shown. The sizes are constants in the source
+  (`DIVIDER_PX`, `GAP_PX` in `PinnedTracksHooks.java`).
 - A pinned track is not shown a second time in the scrolling area (also not as empty clip launcher slots).
 
 ## Reordering
