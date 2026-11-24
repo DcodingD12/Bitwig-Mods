@@ -10,6 +10,7 @@ import bitwig.obf.oxD; // what a clip sits in (knows its track)
 import bitwig.obf.doe; // a callback that runs once per frame, before layout and painting
 import bitwig.obf.dre; // one frame's time
 import bitwig.obf.dsB; // Bitwig's frame clock
+import bitwig.obf.dwF; // a widget
 import bitwig.obf.epr; // widget tree helpers
 import bitwig.obf.loD; // a listener for an observable list
 import java.util.ArrayList;
@@ -240,6 +241,8 @@ final class SelectionFollower implements loD, doe {
     /**
      * The outermost buZ under the arranger's track list = the one Bitwig's action uses (aGq field gNZ).
      * epr.beI visits parents before children, so the first buZ found is not one nested in a group.
+     * Searched inside the scrolling part only (aGj.rcd(), the scroll view around Bitwig's list): the mod
+     * "Pinned Tracks" adds a second list above it, which would be found first otherwise.
      */
     @SuppressWarnings({"rawtypes", "unchecked"})
     private static buZ trackRows(aZJ arrangerView) {
@@ -253,7 +256,8 @@ final class SelectionFollower implements loD, doe {
                 found[0] = (buZ) widget;
             }
         };
-        epr.beI(trackList, buZ.class, first);
+        dwF scrolling = trackList.rcd(); // the scroll view around Bitwig's own track list
+        epr.beI(scrolling != null ? scrolling : trackList, buZ.class, first);
         // sanity check: it must belong to this arranger view (buZ.XzC() = its arranger view)
         return found[0] != null && found[0].XzC() == arrangerView ? found[0] : null;
     }
