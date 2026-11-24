@@ -28,3 +28,16 @@ The values are constants in `src/bitwigmods/timelinewheelzoom/ZoomSettings.java`
 - `REVERSE_DIRECTION` (false): swap wheel up and down. Bitwig's own "reverse zoom direction"
   setting is not followed (Bitwig 6.1.4 and older don't have it).
 - `MAX_PENDING_DOUBLINGS` (4.0): how much zoom a fast spin can queue up.
+
+## Bitwig versions
+
+Written against Bitwig 6.1.4 names (macOS), so BML's map packs translate it to other versions.
+Checked offline against the map packs in BML 0.36.0-dev.13 (names only):
+
+| Bitwig (macOS) | Available |
+|---|---|
+| 6.0, 6.1, 6.1.1, 6.1.2, 6.1.3, 6.1.7 | yes |
+| 6.1.4 | yes (the reference build) |
+
+Windows and Linux were not checked (no map packs for them in this BML install).
+It is a pre-release that works in daily use on Bitwig 6.1.7 (macOS), but expect rough edges.
