@@ -8,6 +8,7 @@ Small arranger mods for [Bitwig Studio](https://www.bitwig.com/) that run on [**
 | [**Track Spacer**](track-spacer/README.md) | Add an empty gap above or below tracks, like REAPER's "Insert spacer before/after tracks". No extra track is created. |
 | [**Zoom Toggle**](zoom-toggle/README.md) | One key hides the clip launcher, zooms to the selected clip and makes its track tall; press again to go back. |
 | [**Timeline Wheel Zoom**](timeline-wheel-zoom/README.md) | Plain mouse wheel over the timeline ruler (arranger and detail editor / piano roll) zooms the time axis smoothly around the mouse. |
+| [**Pinned Tracks**](pinned-tracks/README.md) | Like Cubase's "Divide Track List": pinned tracks stay fixed at the top of the arranger, the rest scrolls below a thin divider. |
 
 All mods are **pre-releases** (`0.x-dev`), used daily on Bitwig 6.1.7 (macOS). Windows and Linux are untested.
 
@@ -15,7 +16,8 @@ All mods are **pre-releases** (`0.x-dev`), used daily on Bitwig 6.1.7 (macOS). W
 
 - Bitwig Studio **6.1.2 – 6.1.7** on **macOS**.
 - [Patch Bay](https://github.com/shaboogen-dev/Patchbay) with BML. The mods don't run without it.
-- **Framework: Actions and Menus** (`action-menu-composition-framework`), enabled, for Track Height Lock, Track Spacer and Zoom Toggle. Timeline Wheel Zoom doesn't need it.
+- **Framework: Actions and Menus** (`action-menu-composition-framework`), enabled, for Track Height Lock, Track Spacer, Zoom Toggle and Pinned Tracks. Timeline Wheel Zoom doesn't need it.
+- Pinned Tracks runs on Bitwig 6.1.4 and 6.1.7 only (a method it needs is missing in older versions).
 
 ## Installation
 
@@ -30,6 +32,7 @@ All mods are **pre-releases** (`0.x-dev`), used daily on Bitwig 6.1.7 (macOS). W
 - **Track Spacer:** right-click a track > *Insert Spacer Before / After Tracks* or *Remove Spacer*. Stored as `#spacer-before` / `#spacer-after` (optionally `=30` for the size in px) in the comment. Not part of Undo; not copied when duplicating a track.
 - **Zoom Toggle:** assign a key to **Zoom to Fit Selection (Toggle)** in *Settings > Shortcuts*. It zooms to the selected clip, makes its track tall (following the selection) and goes back on the second press.
 - **Timeline Wheel Zoom:** turn the wheel over the ruler of the arranger or the detail editor (piano roll), no modifier needed. With Shift/Cmd/Alt/Ctrl held, the wheel behaves as before.
+- **Pinned Tracks:** right-click a top-level track > *Pin to Top* / *Unpin*. Stored as `#pin` in the comment; undoable. Pinned tracks sit between the ruler and the scrolling tracks, with a divider in the timeline's bar line colour. Not tested in Bitwig yet.
 
 Each mod's README has the details and limits.
 
@@ -40,6 +43,7 @@ Needs JDK 25, Python 3, Bitwig Studio and BML (paths and internals in [NOTES.md]
 ```sh
 sh tools/build-mod.sh track-spacer          # build one mod -> out/<mod-id>/
 sh tools/test-java.sh track-spacer          # Java tests
+sh tools/probe-pinned.sh                    # pinned-tracks building blocks with Bitwig's real classes
 python3 -m unittest discover -s tools       # tool tests
 ```
 

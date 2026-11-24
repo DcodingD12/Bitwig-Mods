@@ -8,8 +8,9 @@
   The compile jar `build/bitwig-compile.jar` is created by the first build (never share/commit it).
 - Tests: `python3 -m unittest discover -s tools` (manifest script, translate_hooks), `sh tools/test-java.sh track-height-lock` (lock rule),
   `sh tools/test-java.sh track-spacer` (spacer tags + plan + copy rule), `sh tools/test-java.sh timeline-wheel-zoom`,
-  `sh tools/test-java.sh zoom-toggle` (follow-the-selection state),
-  `sh tools/probe-layout.sh` (layout + painting with Bitwig's real classes).
+  `sh tools/test-java.sh zoom-toggle` (follow-the-selection state), `sh tools/test-java.sh pinned-tracks` (pin tag, divider colour),
+  `sh tools/probe-layout.sh` (layout + painting with Bitwig's real classes),
+  `sh tools/probe-pinned.sh` (pinned-tracks: visibility rules, area layout, divider colour with Bitwig's real classes).
 - `build-mod.sh` only accepts mod folder names of `a-z 0-9 -` that contain a `mod.json` (checked before its `rm -rf`).
   `invert_remap.py` reads `$BML`, `make_uses.py` reads `$JDK` (defaults as before).
   Known: `build-mod.sh` still fails if the repo path contains a space (javac `@sources.txt`); `test-java.sh` handles it.
@@ -465,7 +466,7 @@
 - Open: the first press no longer checks via Bitwig's action whether the arranger handles it (the arranger panel around the focus
   and a shown arranger view are still required); "Zoom to Fit Selection or Previous" still decides the time axis by itself.
 
-## Idea: split track list (Cubase "Divide Track List") – feasibility only, NOTHING built yet
+## Mod: pinned-tracks (Cubase "Divide Track List") – 0.1.0-dev.1 built, NOT tested in Bitwig
 
 Wish: chosen tracks stay fixed at the top of the arranger (own area under the ruler, divider), the rest scrolls below.
 The official Controller API can't change the UI layout at all -> only possible as a BML UI patch.
@@ -496,7 +497,7 @@ The official Controller API can't change the UI layout at all -> only possible a
   `epr.beI(dwF, twa, Z)` there with a "shown" check. Other `epr` searches for `buZ`/`bDm` (also zoom-toggle's `epr.beI(aGq, buZ.class, ..)`)
   have the same issue.
 
-### Possible design (not built): a second root list
+### Design (built as below in 0.1.0-dev.1): a second root list
 1. Pin storage: `#pin` in the track comment (like `#lock`), menu "Pin to Top / Unpin" via Framework: Actions and Menus.
 2. ENTRY `aGj.MgQ` (only `aGq`) + REPLACE_CALL 3rd `dXL.IvP` -> box5 = [Global, pinned area (second `buZ.beI(root, aZJ)` +
    divider), scrolling list]. Pinned list without effect section/master (`HOV()` false while building it) and add area (`bBY.t_` false in `fBD`).
@@ -505,3 +506,53 @@ The official Controller API can't change the UI layout at all -> only possible a
 4. Fix `aGq.beI(zCn)` (visibility check), adjust zoom-toggle's `buZ` search.
 - Open questions: max height / draggable divider for the pinned area; cost of a second full set of row widgets (hidden ones still bound);
   keyboard focus/auto-scroll; lane mode (`bkD`); automation lanes of pinned tracks; pinning tracks inside groups.
+
+### Implementation (0.1.0-dev.1, 13 hooks)
+- Wish (user): right-click "Pin to Top" / "Unpin", `#pin` in the comment, fixed area at the top, divider in the timeline grid
+  line colour, only while at least one track is pinned. Draggable divider: later/optional (not built).
+- `PinRule` (`#pin` whole word, tested), `DividerColour` (line over background, tested), `PinnedTracksActions` (menu, one undo step
+  via `CmH.beI(name,false)` / `CmH.beI(false)`, like track-height-lock 0.2.0; only tracks with `QJW() == TUb()` and in `TUb().xDy()`).
+- `PinnedTracksHooks`:
+  - `view-build-start`/`-end`: ENTRY/BEFORE_RETURN on `aGj.MgQ(uVN,aZJ)`, only for `aGq`; ThreadLocal `Build` (root, panel, view).
+  - `pinned-area`: REPLACE_CALL 3rd `dXL.IvP(dwF)` -> box5 = [Global row, area, scrolling list]. Area = `dXL.sSO()` [doV(1,0,0,0, second
+    `buZ.beI(root, panel)`, background `mum().SQL()` like `aGq.kwH`), spacer 2 px], background = divider colour, `is_visible` bound to
+    `m32 anyShown`. Failure -> main list's emergency switch `showAll` gets a yes value (pinned tracks show in the scrolling list again).
+  - List roles: first root `buZ` (`WYl() == root`) seen during the build = MAIN (Bitwig's, from `kwH`), the one built by us = PINNED;
+    WeakHashMap `bCf -> ListInfo` (no class in the chain overrides equals/hashCode: identity). Nested group lists: no role, untouched.
+  - `pinned-list-without-effects`: REPLACE_CALL `bCf.HOV()` in `bCf.Gef(uVN,aZD)` -> false for PINNED (no effect section, no master).
+  - `pinned-list-add-area` (`bCf.nf_()`) + `pinned-list-add-area-hidden` (`bBY.t_(Z)` in `bCf.fBD()`): add-track area always hidden.
+  - `row-of-track` / `row-of-group`: REPLACE_CALL `bCf.unz(YCD)` / `bCf.Gef(uVN)` in `bCh.beI(zCn)` -> ThreadLocal `Pending(info, track, row)`
+    (set AFTER the row is built, so nested lists built inside don't overwrite it).
+  - `row-visibility`: REPLACE_CALL static `doI.beI(EO,uB1)` in `bCh.beI(zCn)`: MAIN `ccS(bitwig, m32(sFY(pin), showAll))`,
+    PINNED `ccS(bitwig, pin)` and added to `anyShown`; `pin = new KNG(sJU.GKF(), comment -> PinRule.isPinned)` (live on the comment).
+  - `row-visibility-refresh`: REPLACE_CALL `dwF.t_(Z)` in `bCf.fBD()`. `Afd()` IS `is_visible` (`dxv.HOV()`, id 7600) and `fBD` also sets
+    it directly (show deactivated, focus mode) on list/setting changes -> without this hook hidden copies would show again (tracks twice).
+    A row fBD shows stays shown only if our condition (map row -> condition) says yes. Other writers of 7600 are the meta setters
+    `bvh`/`buJ` (= the binding itself).
+  - `row-removed`: REPLACE_CALL `bCf.MgQ(dwF,zCn)` in `bCh.Gef(dwF,zCn,int)` -> row's rule out of `anyShown`.
+  - `row-lookup-shown` / `lane-lookup-shown`: REPLACE_CALL `epr.beI(dwF,twa,Z)` in `aGq.beI(zCn)` and `epr.beI(dwF,twa)` in `aGq.beI(mIM)`:
+    first a shown match (all parents `KrW()` up to the root, parent = `oRH()`), else Bitwig's search (closed groups etc.).
+- Divider colour (verified in code): lanes' background = timeline theme `nEh` field `jTT` = theme "Grey 2" (8th arg of `kEw.beI(...)`);
+  grid lines: `bqT` paints bar lines at strength 1.0 with `ju1.beI(F)` = static `ju1.beI(false, xVa())`: black (white with the light-grid
+  pref `dSm.VNw()`) with alpha = grid contrast pref `dSm.CtA()`/100 (x 0.33 if `xVa()` false). The mod uses `ju1.beI(false, true)`
+  (assumption: arranger lanes have `xVa()` true) mixed over "Grey 2" (`egM.beI("Grey 2").PJ3()`), as `egG.beI(name, SZB)` (the same factory
+  Bitwig's fixed theme colours use; their value = `PJ3()`). Fallback "Grey 1" (`mum().zzi()`). "Grid Line (Primary)" (`egM.pKg()`) is only used
+  by `timeline.tWW`, not by the lane grid.
+- PITFALL found by the probe: `m32.beI(x)` with an `lIU`-typed argument compiles to `lIU.beI(lIU)` (a combinator that returns a NEW value,
+  adds nothing). Always pass `uB1`-typed values to `rpU.beI/Gef`. Checked in the built bytecode (`m32.beI:(LuB1;)V`).
+- Checks: build OK (13 hooks, remap 0 warnings, code + hook round trip OK), names OK on 6.1.7 (and 6.1.4 reference); 6.0–6.1.3 miss
+  `bCf.HOV()` (6.1.4 `bAV.abo`) -> not available there. UNRESOLVED constructors (`SZB`, `ccS`, `m32`, `sFY`, `KNG`): constructors aren't
+  remapped (known tool limit). No other mod in BML dev.17 hooks `aGj`/`aGq`/`bCf`/`bCh` (6.1.4 `aFj`/`aFq`/`bAV`/`bAX`; 398 hooks scanned).
+  `sh tools/probe-pinned.sh` = PIN_PROBE_OK (rules live incl. events, emergency switch, hidden area takes no space, colour value).
+  Offline check (prepare-mod.sh) NOT run (overwrites BML's loader/mod-runtime).
+- zoom-toggle 0.3.1-dev.1: searches its `buZ` inside `aGq.rcd()` (the scroll view) instead of the whole `aGq`.
+- ZIP: `out/pinned-tracks-0.1.0-dev.1.zip`, `out/zoom-toggle-0.3.1-dev.1.zip` (0.3.0 ZIP still there).
+
+### Open risks (only checkable in Bitwig)
+- Whether `dXL` gives the area exactly its natural height (no stretching) and the scrolling list the rest.
+- Whether rows outside the scroll view really follow horizontal scroll/zoom (inferred from the Global row) and line up with the rows below
+  (scroll bar gutter on the right?).
+- Whether row creation for the scrolling list always happens while `aGj.MgQ` runs (roles are assigned then; later lists = no role).
+- Binding + direct `t_` interplay (as Bitwig's own), focus mode, "show deactivated tracks", lane mode, track drag & drop between areas,
+  selection/keyboard navigation, auto-scroll to a pinned track, performance with two full sets of rows.
+- Copying a pinned track copies `#pin` (copy pinned too). Divider colour taken at build time (theme/grid pref changes need a rebuild).
