@@ -1,4 +1,18 @@
+import java.lang.classfile.ClassFile;
+import java.lang.classfile.ClassModel;
+import java.lang.classfile.CodeElement;
+import java.lang.classfile.MethodModel;
+import java.lang.classfile.instruction.TypeCheckInstruction;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.lang.reflect.Modifier;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.function.Function;
+import java.util.zip.ZipFile;
 
 /**
  * Flow test of pinned-tracks' building blocks with Bitwig's REAL classes (installed bitwig.jar, read only, no UI).
@@ -9,6 +23,8 @@ import java.util.function.Function;
  * 2. The pinned area box [content, divider] bound to "any pinned row shown": hidden = no space in its parent,
  *    shown = content + divider height.
  * 3. The divider colour object (egG.beI(name, SZB)) gives back exactly the mixed colour.
+ * 4. Every concrete arranger column (subclass of aGj) is one the mod handles (0.1.0-dev.1 missed the timeline
+ *    and launcher columns, so the clips of pinned tracks still scrolled).
  *
  * Run: sh tools/probe-pinned.sh   (prints PIN_PROBE_OK or fails)
  */
@@ -55,6 +71,7 @@ public final class PinProbe {
         rules();
         layout();
         colour();
+        columns(args.length > 0 ? args[0] : null, args.length > 1 ? args[1] : null);
         if (failures > 0) {
             System.out.println("PIN_PROBE_FAILED " + failures);
             System.exit(1);
@@ -169,6 +186,65 @@ public final class PinProbe {
                 && Math.abs(back.BBg() - 0.16f) <= step && Math.abs(back.unz() - 0.17f) <= step && Math.abs(back.Anf() - 1f) <= step);
         SZB painted = c.beI((dwF) null); // what a widget paints with (no widget needed for a fixed colour)
         check("painted colour = fixed colour", painted != null && Math.abs(painted.MgQ() - back.MgQ()) < 1e-6);
+    }
+
+    /** The classes PinnedTracksHooks.isColumn() checks with instanceof, read from the BUILT mod class. */
+    private static Set<String> handledColumns(String hooksClass) throws Exception {
+        Set<String> handled = new TreeSet<>();
+        ClassModel m = ClassFile.of().parse(Files.readAllBytes(Path.of(hooksClass)));
+        for (MethodModel mm : m.methods()) {
+            if (mm.methodName().stringValue().equals("isColumn") && mm.code().isPresent()) {
+                for (CodeElement ce : mm.code().get()) {
+                    if (ce instanceof TypeCheckInstruction t) {
+                        handled.add(t.type().asInternalName());
+                    }
+                }
+            }
+        }
+        return handled;
+    }
+
+    private static void columns(String jar, String hooksClass) throws Exception {
+        if (jar == null || hooksClass == null) {
+            failures++;
+            System.out.println("FAIL: columns: paths to bitwig.jar and the built PinnedTracksHooks.class missing");
+            return;
+        }
+        Set<String> HANDLED = handledColumns(hooksClass);
+        check("mod's column list read", !HANDLED.isEmpty());
+        Map<String, String> superOf = new HashMap<>();
+        try (ZipFile z = new ZipFile(jar)) {
+            for (var e : Collections.list(z.entries())) {
+                if (!e.getName().endsWith(".class")) {
+                    continue;
+                }
+                try {
+                    ClassModel m = ClassFile.of().parse(z.getInputStream(e).readAllBytes());
+                    superOf.put(m.thisClass().asInternalName(), m.superclass().map(c -> c.asInternalName()).orElse(""));
+                } catch (Exception ignored) {
+                    // not a class we can read: can't be a column
+                }
+            }
+        }
+        Set<String> concrete = new TreeSet<>();
+        for (String c : superOf.keySet()) {
+            for (String k = superOf.get(c); k != null && !k.isEmpty(); k = superOf.get(k)) {
+                if (k.equals("aGj")) {
+                    if (!Modifier.isAbstract(Class.forName(c.replace('/', '.'), false, PinProbe.class.getClassLoader()).getModifiers())) {
+                        concrete.add(c);
+                    }
+                    break;
+                }
+            }
+        }
+        check("arranger columns found", !concrete.isEmpty());
+        for (String c : concrete) {
+            check("arranger column " + c + " is handled by the mod", HANDLED.contains(c));
+        }
+        for (String c : HANDLED) {
+            check("handled column " + c + " exists in this Bitwig", concrete.contains(c));
+        }
+        System.out.println("arranger columns: " + concrete + ", handled by the mod: " + HANDLED);
     }
 
     private static long height(dwF widget) {

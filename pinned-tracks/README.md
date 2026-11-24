@@ -19,8 +19,9 @@ The pin is stored with the project, because the comment is. Without the mod the 
 ## What it looks like
 
 - Order from the top: ruler, Global row (tempo/markers, as before), **pinned tracks**, divider, scrolling tracks.
-- Pinned tracks keep their order from the project. They don't move when you scroll up or down;
-  scrolling and zooming in time works for both areas together.
+- Pinned tracks keep their order from the project. They don't move when you scroll up or down, in every
+  column of the arranger: track headers, the timeline with the clips, and the clip launcher (slots and
+  controls) when it is shown in the arranger. Scrolling and zooming in time works for both areas together.
 - The pinned tracks are Bitwig's normal track rows: edit clips, mute/solo/arm, select, resize, automation lanes.
 - The divider has the colour of the timeline's bar lines on the track lanes (taken from Bitwig's theme and
   grid contrast setting when the arranger is shown). It is only there while at least one track is pinned.
@@ -54,4 +55,8 @@ With **Zoom Toggle**, use version 0.3.1-dev.1 or newer (older versions could pic
 - Changing the theme or the grid contrast setting changes the divider colour only after the arranger is
   rebuilt (e.g. switch the project or the display profile).
 - Shortcuts that scroll to a track (e.g. after creating one) scroll the lower area; a pinned track is always visible anyway.
+- Clip launcher in the arranger: the pinned tracks' clip slots are a second slot grid that scrolls through the
+  scenes together with Bitwig's, but isn't the one Bitwig's scene handling knows about. Launching clips should work;
+  scene-wide actions (e.g. keyboard navigation through slots, scene highlighting) may not reach pinned tracks.
+- The clip launcher in the Mix view is not changed (only the arranger).
 - Menu-only (no shortcut, not in the Commander).

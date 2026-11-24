@@ -3,17 +3,25 @@ package bitwigmods.pinnedtracks;
 import bitwig.obf.KNG;  // a yes/no value computed from another value (here: "comment contains #pin")
 import bitwig.obf.SZB;  // a colour (r, g, b, alpha)
 import bitwig.obf.YCD;  // a (non-group) track, as the UI sees it
-import bitwig.obf.aGj;  // base of the arranger's track view: builds [ruler, Global row, track list, footer]
-import bitwig.obf.aGq;  // the arranger's track view
+import bitwig.obf.Dix;  // a fixed-size layout hint (used for the launcher's scene scroller)
+import bitwig.obf.NKg;  // a layout hint Bitwig gives the launcher lists
+import bitwig.obf.aGa;  // arranger column: clip launcher slots
+import bitwig.obf.aGf;  // arranger column: launcher controls
+import bitwig.obf.aGj;  // base of every arranger column: builds [ruler, Global row, track list, footer]
+import bitwig.obf.aGm;  // arranger column: timeline (clips)
+import bitwig.obf.aGq;  // arranger column: track headers
+import bitwig.obf.aZD;  // base of the arranger panel (theme colours of its columns)
 import bitwig.obf.aZJ;  // the arranger panel
 import bitwig.obf.bBY;  // the empty "add a track" area below the tracks of a list
 import bitwig.obf.bCf;  // base of a track list widget (one per group level)
 import bitwig.obf.bCh;  // keeps a track list's rows in sync with its tracks
-import bitwig.obf.buZ;  // the arranger's track list widget
+import bitwig.obf.bCs;  // track list of the launcher columns
+import bitwig.obf.bDO;  // track list of the launcher's clip slot grid
+import bitwig.obf.bdo;  // which part of the launcher column a bCs list shows
 import bitwig.obf.ccS;  // yes/no: ALL of its values are yes
+import bitwig.obf.dVg;  // a scroll view
 import bitwig.obf.dXL;  // a box that stacks widgets
 import bitwig.obf.doI;  // widget base; doI.beI(property, value) binds a property to a value
-import bitwig.obf.doV;  // a frame around one widget (padding, background)
 import bitwig.obf.dwF;  // a widget
 import bitwig.obf.egG;  // a theme colour
 import bitwig.obf.ekS;  // what a box takes as its background
@@ -44,10 +52,13 @@ import java.util.function.Function;
  * in a fixed area at the top of the arranger, the other tracks scroll below it.
  *
  * How (Bitwig 6.1.7 names):
- * - The arranger view (aGj.MgQ) stacks [ruler, Global row, scrolling track list, footer]. The Global row
- *   already stays fixed above the scrolling list. A second track list (buZ, the same widget Bitwig uses)
- *   for the same tracks is put between the Global row and the scrolling list: the PINNED list. Below it
- *   sits a thin divider in the colour of the timeline's bar lines.
+ * - The arranger is made of side-by-side COLUMNS, each an aGj: track headers (aGq), timeline with the clips
+ *   (aGm), clip launcher slots (aGa) and launcher controls (aGf). Each column stacks (aGj.MgQ) [ruler,
+ *   Global row, its own scrolling track list, footer]; all scrolling lists share one vertical scroll model.
+ *   The Global row stays fixed above the scrolling list. In EVERY column a second track list (built with the
+ *   column's own builder kwH(), so the same widgets Bitwig uses) is put between the Global row and the
+ *   scrolling list: the PINNED list. Below it sits a thin divider in the colour of the timeline's bar lines.
+ *   (0.1.0-dev.1 did this only in the header column: the timeline of pinned tracks still scrolled.)
  * - Every track row's visibility is bound by Bitwig to "track active OR show deactivated tracks"
  *   (bCh.beI(zCn)). For the top level of both lists this rule gets one more condition:
  *   pinned list: AND "#pin in the comment"; scrolling list: AND NOT "#pin in the comment".
@@ -96,13 +107,18 @@ public final class PinnedTracksHooks {
         final uVN root;     // the project's top level the view shows
         final aZJ panel;
         final aGj view;
-        ListInfo main;      // the scrolling list, once recognised
-        ListInfo buildingPinned; // set while our pinned list is being built
+        final ListInfo main = new ListInfo(Role.MAIN);     // this column's scrolling list(s)
+        final ListInfo pinned = new ListInfo(Role.PINNED); // this column's pinned list(s)
+        ListInfo building;  // set while one of the two is being built (kwH)
+        dwF pinnedContent;  // the pinned list(s) as built by the column, until the area is added
+        final Build outer;  // a column build this one runs inside of (normally null), restored at the end
 
-        Build(uVN root, aZJ panel, aGj view) {
+        /** view == null: an aGj this mod leaves alone (still pushed, so an outer build isn't lost). */
+        Build(uVN root, aZJ panel, aGj view, Build outer) {
             this.root = root;
             this.panel = panel;
             this.view = view;
+            this.outer = outer;
         }
     }
 
@@ -114,8 +130,8 @@ public final class PinnedTracksHooks {
 
     /**
      * The role of a track list, or null for every other list (group levels, mixer, other views).
-     * A list is recognised while its arranger view is being built: the first top-level arranger list
-     * (buZ showing the view's root) is the scrolling one (Bitwig's own, from aGq.kwH), the one we build is pinned.
+     * A list is recognised while a column builds it (kwH, see buildLists): every list showing the column's
+     * root (the project's top level) built then gets that role. Lists of groups inside are left alone.
      */
     static ListInfo infoOf(bCf list) {
         ListInfo info = LISTS.get(list);
@@ -123,19 +139,17 @@ public final class PinnedTracksHooks {
             return info;
         }
         Build build = BUILD.get();
-        if (build == null || !(list instanceof buZ) || list.WYl() != build.root) { // WYl: the group the list shows
+        if (build == null || build.view == null || build.building == null || list.WYl() != build.root) { // WYl: the group the list shows
             return null;
         }
-        if (build.buildingPinned != null) {
-            info = build.buildingPinned;
-        } else if (build.main == null) {
-            info = new ListInfo(Role.MAIN);
-            build.main = info;
-        } else {
-            return null;
-        }
+        info = build.building;
         LISTS.put(list, info);
         return info;
+    }
+
+    /** The arranger columns this mod knows how to build twice. */
+    static boolean isColumn(aGj view) {
+        return view instanceof aGq || view instanceof aGm || view instanceof aGf || view instanceof aGa;
     }
 
     // ---- 1. the arranger view: remember what is being built, add the pinned area -----------------
@@ -143,17 +157,79 @@ public final class PinnedTracksHooks {
     @Hook(id = "view-build-start", target = aGj.class,
             method = "MgQ(Lcom/bitwig/flt/document/core/iface/uVN;LaZJ;)V", at = At.ENTRY)
     public static void viewBuildStart(@This aGj view, @Arg(0) uVN root, @Arg(1) aZJ panel) {
-        if (view instanceof aGq && root != null && panel != null) { // only the arranger's track view
-            BUILD.set(new Build(root, panel, view));
-        } else {
-            BUILD.remove();
-        }
+        boolean column = isColumn(view) && root != null && panel != null; // every column of the arranger
+        BUILD.set(column ? new Build(root, panel, view, BUILD.get()) : new Build(null, null, null, BUILD.get()));
     }
 
     @Hook(id = "view-build-end", target = aGj.class,
             method = "MgQ(Lcom/bitwig/flt/document/core/iface/uVN;LaZJ;)V", at = At.BEFORE_RETURN)
     public static void viewBuildEnd(@This aGj view) {
-        BUILD.remove();
+        Build build = BUILD.get();
+        if (build != null && build.outer != null) {
+            BUILD.set(build.outer);
+        } else {
+            BUILD.remove();
+        }
+    }
+
+    // aGj.MgQ calls the column's kwH() once to build its track list (then wraps it in the scroll view).
+    // Here the column builds the PINNED list first, then Bitwig's own one (last, so a column that keeps its
+    // list in a field, like aGq, keeps Bitwig's). The clip slot column (aGa) can't run kwH() twice (it puts
+    // one existing widget into its result), so its pinned copy is built the same way by hand.
+    @Hook(id = "column-lists", target = aGj.class,
+            method = "MgQ(Lcom/bitwig/flt/document/core/iface/uVN;LaZJ;)V",
+            at = At.REPLACE_CALL, callOwner = aGj.class, call = "kwH()LdwF;", occurrence = 1)
+    public static dwF buildLists(aGj view) {
+        Build build = BUILD.get();
+        if (build == null || build.view != view) {
+            return view.kwH(); // what Bitwig does
+        }
+        build.building = build.pinned;
+        try {
+            build.pinnedContent = view instanceof aGa slots ? launcherSlotsCopy(slots, build) : view.kwH();
+        } catch (Throwable t) {
+            build.pinnedContent = null;
+            problem("could not build the pinned track list, the arranger is shown as usual", t);
+        } finally {
+            build.building = null;
+        }
+        build.building = build.main;
+        try {
+            return view.kwH(); // Bitwig's own list
+        } finally {
+            build.building = null;
+        }
+    }
+
+    /**
+     * The clip slot column's list like aGa.kwH() builds it: side by side [launcher list (part bdo.beI), 1 px,
+     * horizontal scroll view around a clip slot grid, 1 px, launcher list (part bdo.sCA)]. The grid is new
+     * (Bitwig's own one stays where it is) and is NOT registered with the column's scene coordinator (bct holds
+     * just one grid). Its scene scrolling is bound to the same document value as Bitwig's, so both move together.
+     */
+    private static dwF launcherSlotsCopy(aGa view, Build build) {
+        dXL box = dXL.fpX();                               // side by side
+        box.byf(0);
+        box.beI((ekS) aZD.Gef(view));
+        bCs left = bCs.beI(build.root, build.panel, bdo.beI);
+        left.a_(NKg.beI());
+        left.unz((ekS) view.mum().rw3());
+        box.IvP(left);
+        box.sCA(1L);
+        bDO grid = bDO.beI(build.root, build.panel);
+        dVg scenes = dVg.MgQ(grid);
+        scenes.ymo(false);
+        scenes.wGt(true);
+        scenes.PJ3(false);
+        scenes.a_(new Dix(170L));
+        box.IvP(scenes);
+        box.sCA(1L);
+        bCs right = bCs.beI(build.root, build.panel, bdo.sCA);
+        right.a_(NKg.beI());
+        right.unz((ekS) view.mum().rw3());
+        box.IvP(right);
+        doI.beI(scenes.qVz().cCV(), view.DIi().BBg());     // scene scroll position, shared with Bitwig's grid
+        return box;
     }
 
     // aGj.MgQ: box5 (top to bottom) gets [Global row, scrolling track list]; the 3rd IvP call adds the
@@ -163,35 +239,28 @@ public final class PinnedTracksHooks {
             at = At.REPLACE_CALL, callOwner = dXL.class, call = "IvP(LdwF;)V", occurrence = 3)
     public static void addTrackList(dXL box, dwF scrollingList) {
         Build build = BUILD.get();
-        if (build != null) {
+        if (build != null && build.view != null) {
+            boolean added = false;
             try {
-                box.IvP(pinnedArea(build));
+                if (build.pinnedContent != null) {
+                    box.IvP(pinnedArea(build));
+                    added = true;
+                }
             } catch (Throwable t) {
                 problem("could not build the pinned area, the arranger is shown as usual", t);
-                if (build.main != null) {
-                    build.main.showAll.beI((uB1) new ccS()); // AND of nothing = yes: pinned tracks show in the scrolling list again
-                }
+            }
+            if (!added) {
+                build.main.showAll.beI((uB1) new ccS()); // AND of nothing = yes: pinned tracks show in the scrolling list again
             }
         }
         box.IvP(scrollingList); // what Bitwig does
     }
 
-    /** [pinned list, divider], shown only while a pinned row is shown. */
+    /** [pinned list(s) of this column, divider], shown only while a pinned row is shown. */
     private static dwF pinnedArea(Build build) {
-        ListInfo info = new ListInfo(Role.PINNED);
-        build.buildingPinned = info;
-        buZ list;
-        try {
-            list = buZ.beI(build.root, build.panel); // a second track list, built like Bitwig's own
-        } finally {
-            build.buildingPinned = null;
-        }
-        LISTS.put(list, info); // (normally already registered while it was built)
-
-        doV framed = doV.beI(list, 1, 0, 0, 0);            // as aGq.kwH frames its list
-        framed.unz((ekS) build.view.mum().SQL());          // same background as the scrolling list
+        ListInfo info = build.pinned;
         dXL area = dXL.sSO();                              // top to bottom
-        area.IvP(framed);
+        area.IvP(build.pinnedContent);                     // framed by the column itself (kwH), like its scrolling list
         area.sCA(DIVIDER_PX);                              // a fixed spacer = the divider
         // A box paints its background only over spacers and gaps, never under its children
         // (checked for track-spacer), so the background colour is exactly the divider's colour.

@@ -466,7 +466,7 @@
 - Open: the first press no longer checks via Bitwig's action whether the arranger handles it (the arranger panel around the focus
   and a shown arranger view are still required); "Zoom to Fit Selection or Previous" still decides the time axis by itself.
 
-## Mod: pinned-tracks (Cubase "Divide Track List") – 0.1.0-dev.1 built, NOT tested in Bitwig
+## Mod: pinned-tracks (Cubase "Divide Track List") – 0.1.0-dev.2 built; 0.1.0-dev.1 tested by the user (headers OK, clips scrolled)
 
 Wish: chosen tracks stay fixed at the top of the arranger (own area under the ruler, divider), the rest scrolls below.
 The official Controller API can't change the UI layout at all -> only possible as a BML UI patch.
@@ -556,3 +556,23 @@ The official Controller API can't change the UI layout at all -> only possible a
 - Binding + direct `t_` interplay (as Bitwig's own), focus mode, "show deactivated tracks", lane mode, track drag & drop between areas,
   selection/keyboard navigation, auto-scroll to a pinned track, performance with two full sets of rows.
 - Copying a pinned track copies `#pin` (copy pinned too). Divider colour taken at build time (theme/grid pref changes need a rebuild).
+
+### 0.1.0-dev.2 (user test of dev.1: headers stayed fixed, but the timeline/clips of pinned tracks still scrolled)
+- Cause (verified in code): the arranger is made of side-by-side COLUMNS, each a subclass of `aGj` with its own
+  [ruler, Global row, scrolling list, footer] (`aGj.MgQ`): `aGq` headers (list `buZ`), `aGm` timeline (list `bvp`; `aGm.Gef(box5)` wraps box5 in
+  the timeline editor `Jpp` + `MhB`), `aGa` clip launcher slots (lists `bCs` x2 + slot grid `bDO` in a horizontal `dVg`), `aGf` launcher controls
+  (`bCs`). Each column's scrolling list is wrapped by `aGj.sCA(dwF)` in a `dVg` on the shared vertical model `aZJ.wBT()`. dev.1 only acted on
+  `aGq` (`view instanceof aGq`), so the other columns kept the pinned tracks in their scrolling list. No shared wheel handler involved.
+- Fix: all four columns (`isColumn`). New hook `column-lists`: REPLACE_CALL `aGj.kwH()` in `aGj.MgQ`: the column builds the pinned list first
+  (role PINNED), then Bitwig's own (role MAIN, last, so `aGq.gNZ` keeps Bitwig's list). `aGm.kwH`/`aGf.kwH` only read fields; `aGa.kwH` puts the
+  EXISTING field widget `byf` (`bDO`, created in `aGa.Gef`) into a new `dVg` and registers it with `bct.beI(bwx)` (one grid only) -> for `aGa` the
+  copy is built by hand like `kwH` with a NEW `bDO.beI(root, panel)`, NOT registered with `bct`, scene scroll bound to the same value
+  (`doI.beI(dVg.qVz().cCV(), DIi().BBg())`). The area is now [column's pinned content as built by kwH, divider] per column.
+- Roles: any `bCf` with `WYl() == root` built while `Build.building` is set (no longer `buZ` only). Build state is a stack (`Build.outer`),
+  so a column build inside another can't wipe the outer one.
+- Probe: `columns()` reads all concrete `aGj` subclasses from bitwig.jar (ClassFile API, JDK 25) and the `instanceof` list of `isColumn` from
+  the BUILT `PinnedTracksHooks.class`; they must match ([aGa, aGf, aGm, aGq]). Would have failed for dev.1.
+- Build: 14 hooks, round trip OK, 109 names OK on 6.1.7; UNRESOLVED fields `bbY.Hnt`/`bbY.cfM` (= `bdo.sCA`/`bdo.beI`) checked by hand in the
+  6.1.4->6.1.7 map (present). Still 6.1.4/6.1.7 only.
+- Untested: alignment of rows across columns (each column: same pinned rows + 2 px divider), pinned clip editing inside `Jpp`, launcher slots of
+  pinned tracks (grid not known to `bct`), performance (now every column builds two lists).

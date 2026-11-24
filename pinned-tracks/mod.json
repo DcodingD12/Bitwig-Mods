@@ -4,7 +4,7 @@
     "id": "pinned-tracks",
     "name": "Arranger: Pinned Tracks",
     "area": "Arranger",
-    "version": "0.1.0-dev.1",
+    "version": "0.1.0-dev.2",
     "author": "Silent Orbit",
     "description": "Like Cubase's 'Divide Track List': pinned tracks stay in a fixed area at the top of the arranger, the other tracks scroll below it, with a thin divider in between. Right-click a top-level track: 'Pin to Top' adds #pin to its comment, 'Unpin' removes it (undoable). Needs Framework: Actions and Menus.",
     "documentation": "readme"
