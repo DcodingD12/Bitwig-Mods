@@ -25,7 +25,17 @@ The pin is stored with the project, because the comment is. Without the mod the 
 - The pinned tracks are Bitwig's normal track rows: edit clips, mute/solo/arm, select, resize, automation lanes.
 - The divider has the colour of the timeline's bar lines on the track lanes (taken from Bitwig's theme and
   grid contrast setting when the arranger is shown). It is only there while at least one track is pinned.
-- A pinned track is not shown a second time in the scrolling area.
+- A pinned track is not shown a second time in the scrolling area (also not as empty clip launcher slots).
+
+## Reordering
+
+- Drag a pinned track header up or down **inside the pinned area** to change the order of the pinned tracks.
+  This changes the track order of the project, as dragging always does in Bitwig.
+- Dragging does **not** pin or unpin: a pinned track dragged into the lower area moves in the project's order
+  but stays pinned (it shows up in the pinned area again); an unpinned track dragged into the pinned area stays below.
+  Use **Pin to Top** / **Unpin** for that.
+- If dragging over the pinned area ever fails, the drop is ignored (and noted in Bitwig's log) instead of
+  crashing Bitwig (0.1.0-dev.2 crashed there in projects with effect tracks; fixed in 0.1.0-dev.3).
 
 ## Which tracks
 

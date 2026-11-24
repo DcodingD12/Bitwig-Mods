@@ -18,7 +18,14 @@ import bitwig.obf.bCh;  // keeps a track list's rows in sync with its tracks
 import bitwig.obf.bCs;  // track list of the launcher columns
 import bitwig.obf.bDO;  // track list of the launcher's clip slot grid
 import bitwig.obf.bdo;  // which part of the launcher column a bCs list shows
+import bitwig.obf.OUi;  // where a dragged item would go (drop target info)
+import bitwig.obf.aaq;  // what is being dragged
 import bitwig.obf.ccS;  // yes/no: ALL of its values are yes
+import bitwig.obf.dKT;  // a drag position
+import bitwig.obf.dKY;  // a drop
+import bitwig.obf.dKk;  // Bitwig's drag & drop session (asks the widget under the mouse where to drop)
+import bitwig.obf.dKm;  // a widget that accepts drops (track lists do)
+import bitwig.obf.ila;  // drag & drop feedback
 import bitwig.obf.dVg;  // a scroll view
 import bitwig.obf.dXL;  // a box that stacks widgets
 import bitwig.obf.doI;  // widget base; doI.beI(property, value) binds a property to a value
@@ -107,7 +114,7 @@ public final class PinnedTracksHooks {
         final uVN root;     // the project's top level the view shows
         final aZJ panel;
         final aGj view;
-        final ListInfo main = new ListInfo(Role.MAIN);     // this column's scrolling list(s)
+        final ListInfo main;                               // this column's scrolling list(s), shared per column
         final ListInfo pinned = new ListInfo(Role.PINNED); // this column's pinned list(s)
         ListInfo building;  // set while one of the two is being built (kwH)
         dwF pinnedContent;  // the pinned list(s) as built by the column, until the area is added
@@ -119,10 +126,25 @@ public final class PinnedTracksHooks {
             this.panel = panel;
             this.view = view;
             this.outer = outer;
+            this.main = view == null ? new ListInfo(Role.MAIN) : mainOf(view);
         }
     }
 
     private static final ThreadLocal<Build> BUILD = new ThreadLocal<>();
+    /** Each column's "scrolling list" info, shared by everything Bitwig builds for that column (weak). */
+    private static final Map<aGj, ListInfo> MAIN_OF_VIEW = Collections.synchronizedMap(new WeakHashMap<>());
+
+    static ListInfo mainOf(aGj view) {
+        synchronized (MAIN_OF_VIEW) {
+            return MAIN_OF_VIEW.computeIfAbsent(view, v -> new ListInfo(Role.MAIN));
+        }
+    }
+
+    /** True for the top-level lists of the pinned areas. */
+    static boolean isPinnedList(Object list) {
+        ListInfo info = list instanceof bCf l ? LISTS.get(l) : null;
+        return info != null && info.role == Role.PINNED;
+    }
     /** The two top-level lists of every arranger view (weak: closed views can go). */
     private static final Map<bCf, ListInfo> LISTS = Collections.synchronizedMap(new WeakHashMap<>());
     /** "Add track" areas of pinned lists: always hidden. */
@@ -169,6 +191,41 @@ public final class PinnedTracksHooks {
             BUILD.set(build.outer);
         } else {
             BUILD.remove();
+        }
+    }
+
+    // The clip slot column builds Bitwig's own slot grid (bDO, a track list) in aGa.Gef BEFORE aGj.MgQ runs,
+    // so it was outside every build and its rows were never filtered (0.1.0-dev.2: empty slot rows of pinned
+    // tracks below the others). Now it is built inside a short build of its own as the column's scrolling list.
+    private static final ThreadLocal<aGa> SLOTS_VIEW = new ThreadLocal<>();
+
+    @Hook(id = "slot-grid-view", target = aGa.class,
+            method = "Gef(Lcom/bitwig/flt/document/core/iface/uVN;LaZJ;)V", at = At.ENTRY)
+    public static void slotColumnStart(@This aGa view) {
+        SLOTS_VIEW.set(view);
+    }
+
+    @Hook(id = "slot-grid-main", target = aGa.class,
+            method = "Gef(Lcom/bitwig/flt/document/core/iface/uVN;LaZJ;)V",
+            at = At.REPLACE_CALL, callOwner = bDO.class, call = "beI(Lcom/bitwig/flt/document/core/iface/uVN;LaZJ;)LbDO;", occurrence = 1)
+    public static bDO buildSlotGrid(uVN root, aZJ panel) {
+        aGa view = SLOTS_VIEW.get();
+        SLOTS_VIEW.remove();
+        if (view == null || root == null || panel == null) {
+            return bDO.beI(root, panel); // what Bitwig does
+        }
+        Build outer = BUILD.get();
+        Build build = new Build(root, panel, view, outer);
+        build.building = build.main;
+        BUILD.set(build);
+        try {
+            return bDO.beI(root, panel); // what Bitwig does, its rows now know they belong to the scrolling grid
+        } finally {
+            if (outer != null) {
+                BUILD.set(outer);
+            } else {
+                BUILD.remove();
+            }
         }
     }
 
@@ -458,6 +515,123 @@ public final class PinnedTracksHooks {
             problem("could not forget a removed row", t);
         }
         list.MgQ(row, track); // what Bitwig does
+    }
+
+    // ---- 3b. drag & drop in the pinned area --------------------------------------------------------
+    // 0.1.0-dev.2 crashed Bitwig when a track was dragged over the pinned area (NullPointerException in
+    // epr.Gef via bCf.beI(dKT), line 637): with effect tracks in the project, bCf's drop position code reads the
+    // effect track box (field Anf) without a null check, behind "uVN.IDq() > 0" (number of effect tracks).
+    // The pinned lists have no effect box (HOV() = false). Every read of Anf outside the builder sits behind such
+    // an IDq() check, in exactly these two methods; for pinned lists they now see 0 effect tracks, like a
+    // project without any (the pinned lists don't show effect tracks).
+    private static final ThreadLocal<Boolean> DROP_IN_PINNED = new ThreadLocal<>();
+
+    @Hook(id = "drop-position-list", target = bCf.class,
+            method = "beI(LdKT;)Lcom/bitwig/flt/document/core/iface/clipboard/track/TrackInsertionPoint;", at = At.ENTRY)
+    public static void dropPositionStart(@This bCf list) {
+        DROP_IN_PINNED.set(isPinnedList(list));
+    }
+
+    @Hook(id = "drop-position-list-inner", target = bCf.class,
+            method = "beI(DDLdKT;)Lcom/bitwig/flt/document/core/iface/clipboard/track/TrackInsertionPoint;", at = At.ENTRY)
+    public static void dropPositionInnerStart(@This bCf list) {
+        DROP_IN_PINNED.set(isPinnedList(list));
+    }
+
+    /** The number of effect tracks as the drop position code sees it: 0 in a pinned list. */
+    private static int effectTrackCount(uVN group) {
+        return Boolean.TRUE.equals(DROP_IN_PINNED.get()) ? 0 : group.IDq(); // IDq: number of effect tracks
+    }
+
+    @Hook(id = "drop-no-effects-1", target = bCf.class,
+            method = "beI(LdKT;)Lcom/bitwig/flt/document/core/iface/clipboard/track/TrackInsertionPoint;",
+            at = At.REPLACE_CALL, callOwner = uVN.class, call = "IDq()I", occurrence = 1)
+    public static int effectTracks1(uVN group) {
+        return effectTrackCount(group);
+    }
+
+    @Hook(id = "drop-no-effects-2", target = bCf.class,
+            method = "beI(LdKT;)Lcom/bitwig/flt/document/core/iface/clipboard/track/TrackInsertionPoint;",
+            at = At.REPLACE_CALL, callOwner = uVN.class, call = "IDq()I", occurrence = 2)
+    public static int effectTracks2(uVN group) {
+        return effectTrackCount(group);
+    }
+
+    @Hook(id = "drop-no-effects-3", target = bCf.class,
+            method = "beI(LdKT;)Lcom/bitwig/flt/document/core/iface/clipboard/track/TrackInsertionPoint;",
+            at = At.REPLACE_CALL, callOwner = uVN.class, call = "IDq()I", occurrence = 3)
+    public static int effectTracks3(uVN group) {
+        return effectTrackCount(group);
+    }
+
+    @Hook(id = "drop-no-effects-inner", target = bCf.class,
+            method = "beI(DDLdKT;)Lcom/bitwig/flt/document/core/iface/clipboard/track/TrackInsertionPoint;",
+            at = At.REPLACE_CALL, callOwner = uVN.class, call = "IDq()I", occurrence = 1)
+    public static int effectTracksInner(uVN group) {
+        return effectTrackCount(group);
+    }
+
+    // Safety net: Bitwig's drag & drop session (dKk) asks the list under the mouse where a drop would go and
+    // tells it about feedback and the drop. If a PINNED list fails there anyway, the drop is ignored (null =
+    // "no drop here", which dKk handles) and logged, instead of taking Bitwig down. Other lists: unchanged.
+    @Hook(id = "drag-safe-query", target = dKk.class, method = "Gef(LdKU;)Z",
+            at = At.REPLACE_CALL, callOwner = dKm.class, call = "beI(Laaq;LdKT;)LOUi;", occurrence = 1)
+    public static OUi safeDropTarget(dKm target, aaq dragged, dKT position) {
+        return dropTarget(target, dragged, position);
+    }
+
+    @Hook(id = "drag-safe-query-2", target = dKk.class, method = "beI(LdKT;)V",
+            at = At.REPLACE_CALL, callOwner = dKm.class, call = "beI(Laaq;LdKT;)LOUi;", occurrence = 1)
+    public static OUi safeDropTarget2(dKm target, aaq dragged, dKT position) {
+        return dropTarget(target, dragged, position);
+    }
+
+    private static OUi dropTarget(dKm target, aaq dragged, dKT position) {
+        try {
+            return target.beI(dragged, position); // what Bitwig does
+        } catch (RuntimeException | LinkageError e) {
+            if (!isPinnedList(target)) {
+                throw e; // not ours: Bitwig's own behaviour
+            }
+            problem("drag & drop over the pinned tracks failed, the drop is ignored", e);
+            return null;
+        }
+    }
+
+    @Hook(id = "drag-safe-feedback", target = dKk.class, method = "beI(LdKT;)V",
+            at = At.REPLACE_CALL, callOwner = dKm.class, call = "beI(Lila;LOUi;)V", occurrence = 1)
+    public static void safeFeedback(dKm target, ila feedback, OUi where) {
+        feedback(target, feedback, where);
+    }
+
+    @Hook(id = "drag-safe-feedback-end", target = dKk.class, method = "sCA()V",
+            at = At.REPLACE_CALL, callOwner = dKm.class, call = "beI(Lila;LOUi;)V", occurrence = 1)
+    public static void safeFeedbackEnd(dKm target, ila feedback, OUi where) {
+        feedback(target, feedback, where);
+    }
+
+    private static void feedback(dKm target, ila feedback, OUi where) {
+        try {
+            target.beI(feedback, where); // what Bitwig does
+        } catch (RuntimeException | LinkageError e) {
+            if (!isPinnedList(target)) {
+                throw e;
+            }
+            problem("drag & drop feedback over the pinned tracks failed, ignored", e);
+        }
+    }
+
+    @Hook(id = "drag-safe-drop", target = dKk.class, method = "beI(LdKY;)Lcom/bitwig/windowing_system/odK;",
+            at = At.REPLACE_CALL, callOwner = dKm.class, call = "beI(Lila;LdKY;)V", occurrence = 1)
+    public static void safeDrop(dKm target, ila feedback, dKY drop) {
+        try {
+            target.beI(feedback, drop); // what Bitwig does
+        } catch (RuntimeException | LinkageError e) {
+            if (!isPinnedList(target)) {
+                throw e;
+            }
+            problem("dropping onto the pinned tracks failed, the drop is ignored", e);
+        }
     }
 
     // ---- 4. "find the row of this track": prefer a row that is shown ---------------------------

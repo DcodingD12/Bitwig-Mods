@@ -466,7 +466,7 @@
 - Open: the first press no longer checks via Bitwig's action whether the arranger handles it (the arranger panel around the focus
   and a shown arranger view are still required); "Zoom to Fit Selection or Previous" still decides the time axis by itself.
 
-## Mod: pinned-tracks (Cubase "Divide Track List") – 0.1.0-dev.2 built; 0.1.0-dev.1 tested by the user (headers OK, clips scrolled)
+## Mod: pinned-tracks (Cubase "Divide Track List") – 0.1.0-dev.3 built; dev.1/dev.2 tested by the user
 
 Wish: chosen tracks stay fixed at the top of the arranger (own area under the ruler, divider), the rest scrolls below.
 The official Controller API can't change the UI layout at all -> only possible as a BML UI patch.
@@ -576,3 +576,23 @@ The official Controller API can't change the UI layout at all -> only possible a
   6.1.4->6.1.7 map (present). Still 6.1.4/6.1.7 only.
 - Untested: alignment of rows across columns (each column: same pinned rows + 2 px divider), pinned clip editing inside `Jpp`, launcher slots of
   pinned tracks (grid not known to `bct`), performance (now every column builds two lists).
+
+### 0.1.0-dev.3 (user test of dev.2: scrolling OK; extra empty slot rows in the lower launcher grid; CRASH when dragging in the pinned area)
+- Crash (log `~/Library/Logs/Bitwig/BitwigStudio.log`, twice): `NullPointerException: Cannot invoke "dwF.kKc()" because "<parameter1>" is null`
+  at `epr.Gef` <- `epr.beI` <- `bCf.beI(dKT)` line 637 (offset 299) <- `bCf.beI(aaq,dKT)` <- `dKk.Gef(dKU)` (drag session).
+  Cause (verified): with effect tracks in the project (`uVN.IDq() > 0`) and the effect section shown (`fLj.UIe()`), bCf's drop position code reads
+  the effect box `Anf` without a null check; pinned lists have none (`HOV()` false since dev.1). Own bug.
+  Fix: ENTRY on `bCf.beI(dKT)` and `bCf.beI(DDLdKT;)` notes "pinned list"; REPLACE_CALL on `uVN.IDq()` (3 + 1 sites) returns 0 for pinned lists
+  (every `Anf` read outside the builder sits behind such a check, probe-checked). Safety net: REPLACE_CALL on the `dKm` calls in `dKk`
+  (`beI(aaq,dKT)` in `Gef(dKU)` and `beI(dKT)`; `beI(ila,OUi)` in `beI(dKT)` and `sCA()`; `beI(ila,dKY)` in `beI(dKY)`): for PINNED lists any
+  RuntimeException/LinkageError is logged and the drop ignored (null = no drop target, handled by dKk); other lists rethrow (unchanged).
+- Reordering: drop positions come from the document via the hovered row (hidden rows work like Bitwig's own hidden deactivated tracks), so with
+  the crash fixed, dragging inside the pinned area reorders the project. Pin/unpin by dragging between areas NOT built (pin stays with the track).
+- Empty slot rows: Bitwig's own slot grid `aGa.byf` (`bDO`) is built in `aGa.Gef` BEFORE `aGj.MgQ` -> outside every build, no role, rows never
+  filtered. Fix: ENTRY `aGa.Gef` (remember the view) + REPLACE_CALL `bDO.beI(uVN,aZJ)` there inside a short Build with the column's MAIN info
+  (`MAIN_OF_VIEW`, shared with the column's later Build so the emergency switch covers it).
+- Probe additions: (5) `bCf.Anf` read only in the two guarded drop methods, IDq() sites there exactly 3 + 1; (6) top-level list factories called by
+  the columns outside `kwH()` = {`aGa.Gef -> bDO` (handled), `aGa.beI -> bDY` (launcher Global row: `ocs()` false, no tracks)}. Timeline (`aGm`) and
+  launcher controls (`aGf`) build lists only in `kwH()` (probe), so they had no such leftover.
+- Build: 27 hooks, round trip OK, 123 names OK on 6.1.7; no other dev.17 mod hooks the same methods (6.1.4 classes aEZ, aFj, aFq, bAV, bAX, dIN).
+- Untested: reordering in Bitwig, drop feedback (insert line) drawn in the pinned area, dragging clips (not tracks) over pinned lanes.

@@ -2,6 +2,8 @@ import java.lang.classfile.ClassFile;
 import java.lang.classfile.ClassModel;
 import java.lang.classfile.CodeElement;
 import java.lang.classfile.MethodModel;
+import java.lang.classfile.instruction.FieldInstruction;
+import java.lang.classfile.instruction.InvokeInstruction;
 import java.lang.classfile.instruction.TypeCheckInstruction;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -25,6 +27,10 @@ import java.util.zip.ZipFile;
  * 3. The divider colour object (egG.beI(name, SZB)) gives back exactly the mixed colour.
  * 4. Every concrete arranger column (subclass of aGj) is one the mod handles (0.1.0-dev.1 missed the timeline
  *    and launcher columns, so the clips of pinned tracks still scrolled).
+ * 5. Outside its builder, bCf reads the effect track box (Anf, missing in pinned lists) only in the two drop
+ *    methods the mod guards (0.1.0-dev.2 crashed Bitwig there when dragging over the pinned area).
+ * 6. The columns build top-level track lists outside kwH() only where the mod handles it (aGa.Gef -> bDO;
+ *    0.1.0-dev.2 missed it: empty slot rows of pinned tracks in the lower clip launcher grid).
  *
  * Run: sh tools/probe-pinned.sh   (prints PIN_PROBE_OK or fails)
  */
@@ -213,6 +219,7 @@ public final class PinProbe {
         Set<String> HANDLED = handledColumns(hooksClass);
         check("mod's column list read", !HANDLED.isEmpty());
         Map<String, String> superOf = new HashMap<>();
+        Map<String, ClassModel> models = new HashMap<>();
         try (ZipFile z = new ZipFile(jar)) {
             for (var e : Collections.list(z.entries())) {
                 if (!e.getName().endsWith(".class")) {
@@ -221,6 +228,10 @@ public final class PinProbe {
                 try {
                     ClassModel m = ClassFile.of().parse(z.getInputStream(e).readAllBytes());
                     superOf.put(m.thisClass().asInternalName(), m.superclass().map(c -> c.asInternalName()).orElse(""));
+                    String n = m.thisClass().asInternalName();
+                    if (n.equals("bCf") || n.startsWith("aG")) {
+                        models.put(n, m);
+                    }
                 } catch (Exception ignored) {
                     // not a class we can read: can't be a column
                 }
@@ -245,6 +256,78 @@ public final class PinProbe {
             check("handled column " + c + " exists in this Bitwig", concrete.contains(c));
         }
         System.out.println("arranger columns: " + concrete + ", handled by the mod: " + HANDLED);
+
+        // 5. reads of bCf.Anf outside the builder
+        Set<String> anfReaders = new TreeSet<>();
+        for (MethodModel mm : models.get("bCf").methods()) {
+            String sig = mm.methodName().stringValue() + mm.methodType().stringValue();
+            if (sig.equals("Gef(Lcom/bitwig/flt/document/core/iface/uVN;LaZD;)V") || mm.code().isEmpty()) {
+                continue; // the builder (creates it, only when HOV())
+            }
+            for (CodeElement ce : mm.code().get()) {
+                if (ce instanceof FieldInstruction f && f.owner().asInternalName().equals("bCf") && f.name().stringValue().equals("Anf")) {
+                    anfReaders.add(sig);
+                }
+            }
+        }
+        Set<String> guarded = Set.of(
+                "beI(LdKT;)Lcom/bitwig/flt/document/core/iface/clipboard/track/TrackInsertionPoint;",
+                "beI(DDLdKT;)Lcom/bitwig/flt/document/core/iface/clipboard/track/TrackInsertionPoint;");
+        check("bCf reads the effect box only in the guarded drop methods " + anfReaders, guarded.containsAll(anfReaders));
+        System.out.println("bCf.Anf read in: " + anfReaders);
+        // the mod replaces IDq() (number of effect tracks) at 3 + 1 call sites in those methods: no more, no less
+        Map<String, Integer> idq = new HashMap<>();
+        for (MethodModel mm : models.get("bCf").methods()) {
+            String sig = mm.methodName().stringValue() + mm.methodType().stringValue();
+            if (!guarded.contains(sig) || mm.code().isEmpty()) {
+                continue;
+            }
+            int n = 0;
+            for (CodeElement ce : mm.code().get()) {
+                if (ce instanceof InvokeInstruction ii && ii.name().stringValue().equals("IDq")
+                        && ii.owner().asInternalName().equals("com/bitwig/flt/document/core/iface/uVN")) {
+                    n++;
+                }
+            }
+            idq.put(sig.startsWith("beI(DD") ? "inner" : "outer", n);
+        }
+        check("IDq() call sites in the drop methods are 3 + 1 (as hooked) " + idq,
+                Integer.valueOf(3).equals(idq.get("outer")) && Integer.valueOf(1).equals(idq.get("inner")));
+
+        // 6. top-level list factories called by the columns outside kwH()
+        Set<String> outside = new TreeSet<>();
+        for (String col : concrete) {
+            for (String k = col; k != null && !k.equals("aGj") && models.containsKey(k); k = superOf.get(k)) {
+                for (MethodModel mm : models.get(k).methods()) {
+                    String name = mm.methodName().stringValue();
+                    if (name.equals("kwH") || mm.code().isEmpty()) {
+                        continue;
+                    }
+                    for (CodeElement ce : mm.code().get()) {
+                        if (ce instanceof InvokeInstruction ii && ii.opcode() == java.lang.classfile.Opcode.INVOKESTATIC) {
+                            String ret = ii.typeSymbol().returnType().descriptorString();
+                            if (ret.startsWith("L") && extendsClass(superOf, ret.substring(1, ret.length() - 1), "bCf")) {
+                                outside.add(k + "." + name + " -> " + ii.owner().asInternalName());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // aGa.Gef -> bDO: handled (slot-grid-main). aGa.beI -> bDY: the Global row of the launcher column
+        // (bDY.ocs() = false: no tracks, VsA() = true: only the Global row), shows no tracks, nothing to filter.
+        Set<String> handledOutside = Set.of("aGa.Gef -> bDO", "aGa.beI -> bDY");
+        check("track lists built outside kwH() are all handled " + outside, handledOutside.containsAll(outside));
+        System.out.println("lists built outside kwH(): " + outside);
+    }
+
+    private static boolean extendsClass(Map<String, String> superOf, String c, String base) {
+        for (String k = c; k != null && !k.isEmpty(); k = superOf.get(k)) {
+            if (k.equals(base)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static long height(dwF widget) {
