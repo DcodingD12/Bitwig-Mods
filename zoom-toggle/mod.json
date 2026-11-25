@@ -4,9 +4,9 @@
     "id": "zoom-toggle",
     "name": "Arranger: Zoom Toggle",
     "area": "Arranger",
-    "version": "0.3.1-dev.1",
+    "version": "0.3.2-dev.1",
     "author": "Silent Orbit",
-    "description": "One shortcut (set it in Settings > Shortcuts, action 'Zoom to Fit Selection (Toggle)') hides the clip launcher (if shown), zooms to the selection in time AND makes the track of the selected clip tall (it follows the selected clip); press it again to go back and show the launcher again. Arranger only. Needs Framework: Actions and Menus.",
+    "description": "One shortcut zooms to the selected clip and makes its track tall. Press again to go back.",
     "documentation": "readme"
   },
   "built_against": {

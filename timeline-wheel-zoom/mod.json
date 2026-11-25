@@ -4,9 +4,9 @@
     "id": "timeline-wheel-zoom",
     "name": "Arranger: Timeline Wheel Zoom",
     "area": "Arranger",
-    "version": "0.3.0-dev.1",
+    "version": "0.3.1-dev.1",
     "author": "Silent Orbit",
-    "description": "With the mouse over the timeline ruler (bars / time) of the arranger or of the detail editor (piano roll), the mouse wheel zooms the time axis smoothly around the mouse position (same amount and direction as Cmd+wheel). With a modifier key held, the wheel works as before.",
+    "description": "Mouse wheel over the timeline ruler zooms smoothly at the pointer (arranger and editor).",
     "documentation": "readme"
   },
   "built_against": {
