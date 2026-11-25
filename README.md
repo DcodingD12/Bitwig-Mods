@@ -10,7 +10,7 @@ Small arranger mods for [Bitwig Studio](https://www.bitwig.com/) that run on [**
 | [**Timeline Wheel Zoom**](timeline-wheel-zoom/README.md) | Plain mouse wheel over the timeline ruler (arranger and detail editor / piano roll) zooms the time axis smoothly around the mouse. |
 | [**Pinned Tracks**](pinned-tracks/README.md) | Like Cubase's "Divide Track List": pinned tracks stay fixed at the top of the arranger, the rest scrolls below a thin divider. |
 
-All mods are **pre-releases** (`0.x-dev`), used daily on Bitwig 6.1.7 (macOS). Windows and Linux are untested.
+All mods are **pre-releases** (`0.x-dev`), used daily on Bitwig 6.1.7 (macOS). On Windows and Linux they pass BML's name check (versions: see each mod's README) but have not been tested in Bitwig.
 
 ## Requirements
 

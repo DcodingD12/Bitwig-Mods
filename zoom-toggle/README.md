@@ -36,5 +36,6 @@ Checked offline against the map packs in BML 0.36.0-dev.13 (names only):
 | 6.1.4 | yes (the reference build) |
 | 6.0, 6.1 | no: two names (`bkD.sCA()`, `buZ.beI(IZList)`) have no counterpart there |
 
-Windows and Linux were not checked (no map packs for them in this BML install).
+Windows and Linux: the name check passed for Bitwig 6.1.1 to 6.1.7 (map packs of BML 0.36.0-dev.17), not for 6.0 to 6.1.
+Not tested in Bitwig on either system.
 It is a pre-release that works in daily use on Bitwig 6.1.7 (macOS), but expect rough edges.

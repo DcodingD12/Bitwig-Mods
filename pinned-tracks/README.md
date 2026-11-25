@@ -57,6 +57,9 @@ translate it to other versions. Checked offline against the map packs in BML 0.3
 | 6.1.4 | yes (the reference build) |
 | 6.1.3, 6.1.2, 6.1.1, 6.1, 6.0 | no: one method the mod needs (the switch for the effect track section of a track list) doesn't exist there yet |
 
+Windows and Linux: the name check passed for Bitwig 6.1.4 and 6.1.7 (map packs of BML 0.36.0-dev.17), not for older versions.
+Not tested in Bitwig on either system.
+
 With **Zoom Toggle**, use version 0.3.1-dev.1 or newer (older versions could pick the pinned list instead of the scrolling one).
 
 ## Known limits (prototype, not tested in Bitwig yet)
